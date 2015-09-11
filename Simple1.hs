@@ -32,7 +32,7 @@
 
 -}
 
-data SourceInfo = SourceInfo {line_no :: Int, column_no :: Int}
+data SourceInfo = SourceInfo {line_no :: Int, column_no :: Int} deriving (Eq, Show)
 
 data Term = TmTrue SourceInfo
           | TmFalse SourceInfo
@@ -42,6 +42,8 @@ data Term = TmTrue SourceInfo
           | TmPred SourceInfo Term
           | TmIsZero SourceInfo Term
           deriving (Eq, Show)
+
+dummyinfo = SourceInfo (-1) (-1)
 
 isNumericVal :: Term -> Bool
 isNumericVal (TmZero _) = True
@@ -53,18 +55,24 @@ isVal (TmTrue _) = True
 isVal (TmFalse _) = True
 isVal t = isNumericVal t
 
-oneStepEval :: Term -> Term
-oneStepEval (TmIf _ (TmTrue _) t _) = t
-oneStepEval (TmIf _ (TmFalse _) _ f) = f
-oneStepEval (TmIf info c t f) = TmIf info c' t f
+oneStepEval :: Term -> Maybe Term
+oneStepEval (TmIf _ (TmTrue _) t _) = return t
+oneStepEval (TmIf _ (TmFalse _) _ f) = return f
+oneStepEval (TmIf info c t f) = c' >>= (\x -> return $ TmIf info x t f)
   where c' = oneStepEval c
-oneStepEval (TmSucc info t) = TmSucc info t'
+oneStepEval (TmSucc info t) = t' >>= return . TmSucc info
   where t' = oneStepEval t
-oneStepEval (TmPred _ z@(TmZero _)) = z
-oneStepEval (TmPred _ (TmSucc _ t)) = t
-oneStepEval (TmPred info t) = TmPred info t'
+oneStepEval (TmPred _ (TmZero _)) = return $ TmZero dummyinfo
+oneStepEval (TmPred _ (TmSucc _ nv)) | isNumericVal nv = return nv
+oneStepEval (TmPred info t) = t' >>= return . TmPred info
   where t' = oneStepEval t
-oneStepEval (TmIsZero info (TmZero _)) = TmTrue info
-oneStepEval (TmIsZero info (TmSucc _ _)) = TmFalse info
-oneStepEval (TmIsZero info t) = TmIsZero info t'
+oneStepEval (TmIsZero _ (TmZero _)) = return $ TmTrue dummyinfo
+oneStepEval (TmIsZero _ (TmSucc _ nv)) | isNumericVal nv = return $ TmFalse dummyinfo
+oneStepEval (TmIsZero info t) = t' >>= return . TmIsZero info
   where t' = oneStepEval t
+oneStepEval _ = Nothing
+
+eval :: Term -> Term
+eval t = let t' = oneStepEval t
+         in case t' of (Just term) -> eval term
+                       Nothing -> t
