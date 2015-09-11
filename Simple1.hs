@@ -76,3 +76,55 @@ eval :: Term -> Term
 eval t = let t' = oneStepEval t
          in case t' of (Just term) -> eval term
                        Nothing -> t
+
+-- the implementaion below uses big-step evaluation
+{- v means evaluate to a value
+  v1 v v1
+
+  t1 v true t2 v v2
+  -------------------------------
+  if t1 then t2 else t3 v v2
+
+  t1 v false t2 v v2
+  -------------------------------
+  if t1 then t2 else t3 v v3
+
+  t1 v nv
+  -------------------------------
+  succ t1 v succ nv1
+
+  t1 v 0
+  -------------------------------
+  pred t1 v 0
+
+  t1 v succ nv1
+  -------------------------------
+  pred t1 v nv1
+
+  t1 v 0
+  -------------------------------
+  iszero t1 v true
+
+  t1 v succ nv1
+  -------------------------------
+  iszero t1 v false
+
+-}
+
+bigStepEval :: Term -> Maybe Term
+bigStepEval t | isVal t = return t
+bigStepEval (TmIf info c t f) = let c' = bigStepEval c in
+  case c' of (Just (TmTrue _)) -> bigStepEval t
+             (Just (TmFalse _)) -> bigStepEval f
+             otherwise -> Nothing
+bigStepEval (TmSucc info t) = let t' = bigStepEval t in
+  case t' of (Just term) | isNumericVal term -> return $ TmSucc info term
+             otherwise -> Nothing
+bigStepEval (TmPred _ t) = let t' = bigStepEval t in
+  case t' of (Just (TmZero _)) -> return $ TmZero dummyinfo
+             (Just (TmSucc _ nv)) -> return nv
+             otherwise -> Nothing
+bigStepEval (TmIsZero _ t) = let t' = bigStepEval t in
+  case t' of (Just (TmZero _)) -> return $ TmTrue dummyinfo
+             (Just (TmSucc _ _)) -> return $ TmFalse dummyinfo
+             otherwise -> Nothing
