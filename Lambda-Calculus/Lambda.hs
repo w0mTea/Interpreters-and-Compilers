@@ -1,17 +1,25 @@
 -- File: Lambda.hs
 -- Description: An simple lambda calculus interpreter
 
-data Info = Info {line_no :: Int, column_no :: Int}
+data Info = Info {line_no :: Int, column_no :: Int} deriving (Show, Eq)
 
 -- Use De Bruijin index to represent lambda calculus
 data Term = TmVar Info Int Int -- the second Int is a debug info which stores the current context's length
           | TmAbs Info String Term
           | TmApp Info Term Term
+          deriving (Show, Eq)
 
  -- left for extend
-data Binding = EmptyBinding
+data Binding = EmptyBinding deriving (Show, Eq)
 
 type Context = [(String, Binding)]
+
+{-
+LP ::= (
+LAMBDA ::= \
+ID ::= [a-zA-Z_][a-zA-Z0-9_]*
+RP ::= )
+-}
 
 --{ Core functions
 
@@ -54,8 +62,14 @@ eval1 _ _ = Nothing
 eval :: Context -> Term -> Term
 eval ctx t = let t' = eval1 ctx t in
   case t' of
-  (Just term) -> term
+  (Just term) -> eval ctx term
   Nothing -> t
+
+--}
+
+--{ Parse functions
+
+lexer :: Char -> 
 
 --}
 
@@ -63,19 +77,28 @@ eval ctx t = let t' = eval1 ctx t in
 
 printTerm :: Context -> Term -> String
 printTerm ctx (TmAbs _ name t1) = let (ctx', name') = pickFreshName ctx name in
-  "(\\ " ++ name' ++ ". " ++ printTerm ctx' t1 ++ ")"
+  "(λ" ++ name' ++ ". " ++ printTerm ctx' t1 ++ ")"
 printTerm ctx (TmApp _ t1 t2) = "(" ++ printTerm ctx t1 ++ printTerm ctx t2 ++ ")"
 printTerm ctx (TmVar info x len) = if ctxLength ctx == len
                                   then indexToName info ctx x
                                   else "[bad index]"
 
 pickFreshName :: Context -> String -> (Context, String)
-pickFreshName ctx name = undefined
+pickFreshName ctx name = (ctx', name')
+  where n = foldr (\ (c, _) count -> if c == name then count + 1 else count) 0 ctx
+        name' = if n > 1 then name ++ show (n - 1) else name
+        func pre (c:cs) | fst c == name = pre ++ [(name', snd c)] ++ cs
+        ctx' = reverse $ func [] ctx
 
 ctxLength :: Context -> Int
-ctxLength ctx = undefined
+ctxLength = length
 
 indexToName :: Info -> Context -> Int -> String
-indexToName info ctx index = undefined
+indexToName info ctx index = fst $ f (reverse ctx) index
+  where f (x:xs) 0 = x
+        f (x:xs) n = f xs (n-1)
 
 --}
+
+
+dummyinfo = Info (-1) (-1)
