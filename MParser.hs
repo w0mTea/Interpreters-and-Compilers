@@ -1,10 +1,20 @@
-{-
 module MParser
-       ( a
-       , b
-       , c
+       ( Parser(..)
+       , (|>)
+       , runParser
+       , item
+       , satisfy
+       , char
+       , oneOf
+       , digit
+       , parens
+       , spaces
+       , Functor (..)
+       , Applicative (..)
+       , Monad (..)
+       , MonadPlus (..)
+       , Alternative (..)
        ) where
--}
 
 import Control.Applicative
 import Control.Monad
@@ -61,3 +71,19 @@ satisfy = (item |>)
 
 char :: Char -> Parser Char
 char c = satisfy (c == )
+
+oneOf :: [Char] -> Parser Char
+oneOf s = satisfy (flip elem s)
+
+digit :: Parser Char
+digit = satisfy isDigit
+
+parens :: Parser a -> Parser a
+parens m = do
+  char '('
+  n <- m
+  char ')'
+  return n
+
+spaces :: Parser String
+spaces = many $ oneOf " \n\r"
