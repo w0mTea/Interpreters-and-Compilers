@@ -62,5 +62,3 @@ satisfy = (item |>)
 char :: Char -> Parser Char
 char c = satisfy (c == )
 
-type Test a = String -> [(a, String)]
-
