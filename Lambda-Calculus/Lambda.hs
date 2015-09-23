@@ -1,6 +1,8 @@
 -- File: Lambda.hs
 -- Description: An simple lambda calculus interpreter
 
+import MParser
+
 data Info = Info {line_no :: Int, column_no :: Int} deriving (Show, Eq)
 
 -- Use De Bruijin index to represent lambda calculus
@@ -13,13 +15,6 @@ data Term = TmVar Info Int Int -- the second Int is a debug info which stores th
 data Binding = EmptyBinding deriving (Show, Eq)
 
 type Context = [(String, Binding)]
-
-{-
-LP ::= (
-LAMBDA ::= \
-ID ::= [a-zA-Z_][a-zA-Z0-9_]*
-RP ::= )
--}
 
 --{ Core functions
 
@@ -69,7 +64,63 @@ eval ctx t = let t' = eval1 ctx t in
 
 --{ Parse functions
 
-lexer :: Char -> 
+{-
+ term = var | abs | app
+ var ::= [A-Za-z_][_A-Za-z0-9]*
+ abs ::= \var.term
+ app ::= (term) term | (term) (term)
+-}
+
+data PTerm = PVar String
+           | PAbs String PTerm
+           | PApp PTerm PTerm
+
+name :: Parser String
+name = oneOf n >>= \x -> fmap ([x] ++) $ many $ oneOf n'
+  where n = ['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['_']
+        n' = n ++ ['0' .. '9']
+
+term :: Parser PTerm
+term = pVar `mplus` pAbs `mplus` pApp1 `mplus` pApp2
+  where pVar = do
+          n <- name
+          return  $ PVar n
+        pAbs = do
+          char '\\'
+          spaces
+          n <- name
+          spaces
+          char '.'
+          spaces
+          t <- term
+          return $ PAbs n t
+        pApp1 = do
+          t1 <- parens term
+          spaces
+          t2 <- term
+          return $ PApp t1 t2
+        pApp2 = do
+          t1 <- parens term
+          spaces
+          t2 <- parens term
+          return $ PApp t1 t2
+--}
+
+--{ Convert a lambda calculus into the nameless form
+
+removeName :: Context -> PTerm -> (Term, Context)
+removeName ctx (PVar name) = let index = indexOfName name ctx
+                                 len = length ctx
+                             in case index of
+                                  (Just index') -> (TmVar dummyinfo index' len, ctx)
+                                  Nothing -> error "\"" ++ name ++ "\" is a free variable"
+removeName ctx (PAbs name t) = let (t', ctx') = removeName (ctx ++ (name, EmptyBinding)) t
+                               in (TmAbs dummyinfo name t', ctx')
+removeName ctx (PApp pt1 pt2) = let (t1, ctx1) = removeName ctx pt1
+                                    (t2, ctx2) = removeName ctx pt2
+                                in if length ctx1 > length ctx2 -- in this situation, choose a longger ctx
+                                   then (TmApp dummyinfo t1 t2, ctx1)
+                                   else (TmApp dummyinfo t1 t2, ctx2)
 
 --}
 
@@ -90,9 +141,6 @@ pickFreshName ctx name = (ctx', name')
         func pre (c:cs) | fst c == name = pre ++ [(name', snd c)] ++ cs
         ctx' = reverse $ func [] ctx
 
-ctxLength :: Context -> Int
-ctxLength = length
-
 indexToName :: Info -> Context -> Int -> String
 indexToName info ctx index = fst $ f (reverse ctx) index
   where f (x:xs) 0 = x
@@ -100,5 +148,16 @@ indexToName info ctx index = fst $ f (reverse ctx) index
 
 --}
 
+--{Auxilary functions
+
+ctxLength :: Context -> Int
+ctxLength = length
+
+indexOfName :: String -> Context -> Maybe Int
+indexOfName name ctx = func name 0 $ reverse ctx
+  where func n i [] = Nothing
+        func n i ((s, _):cs) = if n == s then Just i else func n (i+1) cs
+        func _ _ _ = Nothing
+--}
 
 dummyinfo = Info (-1) (-1)
