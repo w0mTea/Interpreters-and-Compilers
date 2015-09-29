@@ -2,6 +2,8 @@
 -- Description: An simple lambda calculus interpreter
 
 import MParser
+import System.IO
+import System.Environment
 
 data Info = Info {line_no :: Int, column_no :: Int} deriving (Show, Eq)
 
@@ -68,12 +70,13 @@ eval ctx t = let t' = eval1 ctx t in
  term = var | abs | app
  var ::= [A-Za-z_][_A-Za-z0-9]*
  abs ::= \var.term
- app ::= (term) term | (term) (term)
+ app ::= (term) term | (term) (term) | var (term) | var var
 -}
 
 data PTerm = PVar String
            | PAbs String PTerm
            | PApp PTerm PTerm
+           deriving Show
 
 name :: Parser String
 name = oneOf n >>= \x -> fmap ([x] ++) $ many $ oneOf n'
@@ -81,11 +84,13 @@ name = oneOf n >>= \x -> fmap ([x] ++) $ many $ oneOf n'
         n' = n ++ ['0' .. '9']
 
 term :: Parser PTerm
-term = pVar `mplus` pAbs `mplus` pApp1 `mplus` pApp2
+term = pApp1 <|> pApp2 <|> pApp3 <|> pApp4 <|> pVar <|> pAbs
   where pVar = do
+          spaces
           n <- name
           return  $ PVar n
         pAbs = do
+          spaces
           char '\\'
           spaces
           n <- name
@@ -95,15 +100,30 @@ term = pVar `mplus` pAbs `mplus` pApp1 `mplus` pApp2
           t <- term
           return $ PAbs n t
         pApp1 = do
+          spaces
           t1 <- parens term
           spaces
           t2 <- term
           return $ PApp t1 t2
         pApp2 = do
+          spaces
           t1 <- parens term
           spaces
           t2 <- parens term
           return $ PApp t1 t2
+        pApp3 = do
+          spaces
+          var <- pVar
+          spaces
+          t <- parens term
+          return $ PApp var t
+        pApp4 = do
+          spaces
+          v1 <- pVar
+          spaces
+          v2 <- pVar
+          return $ PApp v1 v2
+          
 --}
 
 --{ Convert a lambda calculus into the nameless form
@@ -113,8 +133,8 @@ removeName ctx (PVar name) = let index = indexOfName name ctx
                                  len = length ctx
                              in case index of
                                   (Just index') -> (TmVar dummyinfo index' len, ctx)
-                                  Nothing -> error "\"" ++ name ++ "\" is a free variable"
-removeName ctx (PAbs name t) = let (t', ctx') = removeName (ctx ++ (name, EmptyBinding)) t
+                                  Nothing -> error $ "\"" ++ name ++ "\" is a free variable"
+removeName ctx (PAbs name t) = let (t', ctx') = removeName (ctx ++ [(name, EmptyBinding)]) t
                                in (TmAbs dummyinfo name t', ctx')
 removeName ctx (PApp pt1 pt2) = let (t1, ctx1) = removeName ctx pt1
                                     (t2, ctx2) = removeName ctx pt2
@@ -155,9 +175,34 @@ ctxLength = length
 
 indexOfName :: String -> Context -> Maybe Int
 indexOfName name ctx = func name 0 $ reverse ctx
-  where func n i [] = Nothing
-        func n i ((s, _):cs) = if n == s then Just i else func n (i+1) cs
+  where func n i ((s, _):cs) = if n == s then Just i else func n (i+1) cs
         func _ _ _ = Nothing
 --}
 
 dummyinfo = Info (-1) (-1)
+
+lambdaParser :: String -> String
+lambdaParser s = let l = parse term s in
+  case l of
+    [] -> "Empty file"
+    [(t, "")] -> interprete t
+    _ -> "Parse error"
+
+interprete :: PTerm -> String
+interprete t = let (t', ctx) = removeName [] t
+                   t'' = eval ctx t' in
+               printTerm ctx t''
+
+
+main = do
+  lst <- getArgs
+  case lst of
+    [] -> putStrLn "A input file is needed"
+    xs -> do
+      sequence $ map parseFile xs
+      return ()
+
+parseFile :: String -> IO ()
+parseFile filename = do
+  s <- readFile filename
+  putStrLn $ lambdaParser s
