@@ -13,13 +13,23 @@ type LCParser = Parsec String Context Term
 data Term = TmVar Info Int Int -- the second Int is a debug info which stores the current context's length
           | TmAbs Info String Term
           | TmApp Info Term Term
-          deriving Show
 
  -- left for extend
 data Binding = EmptyBinding deriving (Show, Eq)
 
 type Context = [(String, Binding)]
 
+-- pretty print function
+instance Show Term where
+    show = pprint 0
+
+indentBy :: Int -> String
+indentBy = flip replicate ' '
+
+pprint :: Int -> Term -> String
+pprint i (TmVar _ n l) = indentBy i ++ "(TmVar " ++ show n ++ " " ++ show l ++ ")"
+pprint i (TmAbs _ n t) = indentBy i ++ "(TmAbs " ++ n ++ "\n" ++ pprint (i + 2) t ++ ")"
+pprint i (TmApp _ t1 t2) = indentBy i ++ "(TmApp\n" ++ pprint (i + 2) t1 ++ "\n" ++ pprint (i + 2) t2 ++ ")"
 
 -- { Parse functions
 infoFrom :: SourcePos -> Info
@@ -105,7 +115,7 @@ tmMap f = func 0
 
 tmShift :: Int -> Term -> Term
 tmShift step = tmMap f
-  where f c (TmVar info n len) = TmVar info (n + step) (len + step)
+  where f c (TmVar info n len) = TmVar info (n + step) len
         f _ _ = error "Error in tmShift"
 
 tmSubst :: Int -> Term -> Term -> Term
@@ -151,7 +161,7 @@ printTerm ctx (TmAbs _ name t1) = let (ctx', name') = pickFreshName ctx name in
 printTerm ctx (TmApp _ t1 t2) = "(" ++ printTerm ctx t1 ++ " " ++ printTerm ctx t2 ++ ")"
 printTerm ctx (TmVar info x len) = if length ctx == len
                                   then indexToName info ctx x
-                                  else "[bad index]"
+                                  else "[bad index: " ++ show ctx ++ " len is: " ++ show len ++ "]"
 
 pickFreshName :: Context -> String -> (Context, String)
 pickFreshName ctx name = (ctx', name')
