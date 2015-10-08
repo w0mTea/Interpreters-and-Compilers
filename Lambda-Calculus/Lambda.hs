@@ -106,7 +106,7 @@ lcParse = parseWith parseTerm
 --}
 
 --{ Core functions
-
+-- apply a function on Each subterm of the given term
 tmMap :: (Int -> Term -> Term) -> Term -> Term
 tmMap f = func 0
   where func c t1@(TmVar {}) = f c t1
@@ -115,7 +115,9 @@ tmMap f = func 0
 
 tmShift :: Int -> Term -> Term
 tmShift step = tmMap f
-  where f c (TmVar info n len) = TmVar info (n + step) len
+  where f c t@(TmVar info n len)
+            | n < c = t
+            | otherwise = TmVar info (n + step) len
         f _ _ = error "Error in tmShift"
 
 tmSubst :: Int -> Term -> Term -> Term
