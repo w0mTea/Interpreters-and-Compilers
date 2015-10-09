@@ -1,28 +1,58 @@
-module Parser where
+module Parser (lcParse) where
 
 import Context
 import Syntax
 import Text.Parsec
-import Text.Parsec.Combinator (chainl1)
+import Data.Functor.Identity (Identity)
+import qualified Text.Parsec.Token as T
 
-type LCParser = Parsec String Context Term
+type LCParser = ParsecT String Context Identity Term
+
+langDef :: T.LanguageDef st
+langDef = T.LanguageDef
+        { T.commentStart = "/*"
+        , T.commentEnd = "*/"
+        , T.commentLine = "//"
+        , T.nestedComments = False
+        , T.identStart = letter <|> char '_'
+        , T.identLetter = alphaNum <|> char '_' <|> char '\''
+        , T.opStart = letter
+        , T.opLetter = alphaNum <|> oneOf "*#&?^$"
+        , T.reservedNames = ["if", "then", "else", "Bool", "True", "False"]
+        , T.reservedOpNames = []
+        , T.caseSensitive = True
+        }
+
+lexer :: T.GenTokenParser String u Identity
+lexer = T.makeTokenParser langDef
+
+ident :: ParsecT String u Identity String
+ident = T.identifier lexer
+
+blank :: ParsecT String u Identity ()
+blank = T.whiteSpace lexer
+
+reserved :: String -> ParsecT String u Identity ()
+reserved = T.reserved lexer
+
+symbol :: String -> ParsecT String u Identity String
+symbol = T.symbol lexer
+
+colon :: ParsecT String u Identity String
+colon = T.colon lexer
+
+dot :: ParsecT String u Identity String
+dot = T.dot lexer
+
+parens :: ParsecT String u Identity a -> ParsecT String u Identity a
+parens = T.parens lexer
 
 infoFrom :: SourcePos -> Info
 infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
 
-name :: Parsec String u String
-name = do
-    let fLetters = ['A' .. 'Z'] ++ ['a' .. 'z'] ++ "_"
-        iLetters = fLetters ++ ['0' .. '9']
-    f <- oneOf fLetters
-    r <- many $ oneOf iLetters
-    t <- many $ char '\''
-    spaces
-    return $ (f : r) ++ t
-
 parseVar :: LCParser
 parseVar = do
-    n <- name
+    n <- ident
     ctx <- getState
     findVar n ctx
 
@@ -42,8 +72,8 @@ indexInCtx n ctx = func n ctx 0
 
 parseBoolType :: Parsec String u TmType
 parseBoolType = do
-    _ <- string "Bool"
-    spaces
+    reserved "Bool"
+--    blank
     return TyBool
 
 parseType :: Parsec String u TmType
@@ -53,12 +83,12 @@ parseType = parseBoolType
 parseAbs :: LCParser
 parseAbs = do
     pos <- getPosition
-    _ <- char '\\'
-    n <- name
-    _ <- char ':'
-    spaces
+    _ <- symbol "\\"
+    n <- ident
+    _ <- colon
+--    blank
     ty <- parseType
-    _ <- char '.'
+    _ <- dot
     modifyState ((n, VarBind ty) :)
     t <- parseTerm
     modifyState tail
@@ -67,30 +97,18 @@ parseAbs = do
 parseIf :: LCParser
 parseIf = do
     pos <- getPosition
-    _ <- string "if"
+    _ <- reserved "if"
     c <- parseTerm
-    _ <- string "then"
+    _ <- reserved "then"
     t1 <- parseTerm
-    _ <- string "else"
+    _ <- reserved "else"
     t2 <- parseTerm
     return $ TmIf (infoFrom pos) c t1 t2
 
 parseBool :: LCParser
-parseBool = do
-    pos <- getPosition
-    s <- string "True" <|> string "False"
-    spaces
-    if s == "True"
-    then return $ TmTrue (infoFrom pos)
-    else return $ TmFalse (infoFrom pos)
-
-parens :: Parsec String u a -> Parsec String u a
-parens p = do
-    _ <- char '('
-    t <- p
-    _ <- char ')'
-    spaces
-    return t
+parseBool = parseTrue <|> parseFalse
+    where parseTrue = do {pos <- getPosition; reserved "True"; return $ TmTrue (infoFrom pos)}
+          parseFalse = do {pos <- getPosition; reserved "False"; return $ TmFalse (infoFrom pos)}
 
 parseNonApp :: LCParser
 parseNonApp =  parens parseTerm
@@ -100,7 +118,7 @@ parseNonApp =  parens parseTerm
            <|> try parseVar
 
 parseTerm :: LCParser
-parseTerm = chainl1 (spaces >> parseNonApp) $ do
+parseTerm = chainl1 (blank >> parseNonApp) $ do
     pos <- getPosition
     return $ TmApp (infoFrom pos)
 
