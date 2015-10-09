@@ -16,7 +16,7 @@ addBinding :: Context -> String -> Binding -> Context
 addBinding ctx var bind = (var, bind) : ctx
 
 getTypeFromContext :: Info -> Context -> Int -> Either String TmType
-getTypeFromContext fi ctx i = let (_, b) = ctx !! i in
+getTypeFromContext fi ctx i = let (_, b) = (reverse ctx) !! i in
     case b of
         (VarBind ty) -> Right ty
         _ -> Left $ show fi
