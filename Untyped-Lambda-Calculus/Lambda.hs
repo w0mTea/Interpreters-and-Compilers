@@ -127,7 +127,7 @@ tmSubst j s = tmMap f
         f _ _ = error "Error in tmSubst"
 
 tmAppAbs :: Term -> Term -> Term
-tmAppAbs t1 t2 = tmShift (-1) $ tmSubst 0 (tmShift 1 t1) t2
+tmAppAbs (TmAbs _ _ t) v = tmShift (-1) $ tmSubst 0 (tmShift 1 v) t
 
 --}
 
