@@ -25,4 +25,6 @@ pprint i (TmApp _ t1 t2) = indentBy i ++ "(TmApp\n" ++ pprint (i + 2) t1 ++ "\n"
 
 isVal :: Term -> Bool
 isVal (TmAbs {}) = True
+isVal (TmTrue {}) = True
+isVal (TmFalse {}) = True
 isVal _ = False

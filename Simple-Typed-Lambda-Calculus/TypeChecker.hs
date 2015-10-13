@@ -13,7 +13,7 @@ typeOf ctx (TmIf info c t1 t2) = do
     case tyC of
         TyBool | tyT1 == tyT2 -> Right tyT1
                | otherwise -> Left $ show info ++ ": Two branches have different types"
-        _ -> Left $ show info ++ ": Except Bool type of the condition"
+        _ -> Left $ show info ++ ": Except Bool type for the condition"
 typeOf ctx (TmVar info i _) = getTypeFromContext info ctx i
 typeOf ctx (TmAbs _ s ty t) = do
     let ctx' = addBinding ctx s (VarBind ty)

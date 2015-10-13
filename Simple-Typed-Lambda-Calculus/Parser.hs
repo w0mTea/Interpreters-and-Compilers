@@ -73,7 +73,6 @@ indexInCtx n ctx = func n ctx 0
 parseBoolType :: Parsec String u TmType
 parseBoolType = do
     reserved "Bool"
---    blank
     return TyBool
 
 parseType :: Parsec String u TmType
@@ -86,7 +85,6 @@ parseAbs = do
     _ <- symbol "\\"
     n <- ident
     _ <- colon
---    blank
     ty <- parseType
     _ <- dot
     modifyState ((n, VarBind ty) :)
