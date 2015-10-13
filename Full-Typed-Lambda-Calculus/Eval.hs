@@ -43,6 +43,15 @@ eval1 (TmIf _ (TmFalse _) _ t2) = return t2 -- E-IFFALSE
 eval1 (TmIf info c t1 t2) = do -- E-IF
     c' <- eval1 c
     return $ TmIf info c' t1 t2
+eval1 (TmSucc info t) = do -- E-SUCC
+    t' <- eval1 t
+    return $ TmSucc info t'
+eval1 (TmPred _ z@(TmZero {})) = return z -- E-PREDZERO
+eval1 (TmPred info t) | not $ isVal t = do {t' <- eval1 t; return $ TmPred info t'} -- E-PRED
+eval1 (TmPred _ (TmSucc _ nv)) = return nv -- E-PREDSUCC
+eval1 (TmIsZero info (TmZero {})) = return $ TmTrue info -- E-ISZEROZERO
+eval1 (TmIsZero info t) | not $ isVal t = do {t' <- eval1 t; return $ TmIsZero info t'} -- E-ISZERO
+eval1 (TmIsZero info (TmSucc {})) = return $ TmFalse info -- E-ISZEROSUCC
 eval1 _ = Nothing
 
 eval :: Term -> Term

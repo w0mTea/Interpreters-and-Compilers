@@ -8,6 +8,11 @@ data Term = TmTrue Info
           | TmVar Info Int Int -- the second Int means the length of context
           | TmAbs Info String TmType Term
           | TmApp Info Term Term
+          | TmZero Info
+          | TmSucc Info Term
+          | TmPred Info Term
+          | TmIsZero Info Term
+
 
 instance Show Term where
     show = pprint 0
@@ -27,4 +32,9 @@ isVal :: Term -> Bool
 isVal (TmAbs {}) = True
 isVal (TmTrue {}) = True
 isVal (TmFalse {}) = True
-isVal _ = False
+isVal t = isNv t
+
+isNv :: Term -> Bool
+isNv (TmZero {}) = True
+isNv (TmSucc _ t) = isNv t
+isNv _ = False
