@@ -31,4 +31,4 @@ getTypeFromContext fi ctx i =
           bindAt (x:xs) n | n == 0 = Just x
                           | n  > 0 = bindAt xs (n - 1)
           bindAt _ _ = Nothing
-          c = bindAt (reverse ctx) i
+          c = bindAt ctx i
