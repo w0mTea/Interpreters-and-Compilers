@@ -4,6 +4,7 @@ import Context
 import Syntax
 import Text.Parsec
 import Data.Functor.Identity (Identity)
+import Control.Monad (msum)
 import qualified Text.Parsec.Token as T
 
 type LCParser = ParsecT String Context Identity Term
@@ -18,7 +19,7 @@ langDef = T.LanguageDef
         , T.identLetter = alphaNum <|> char '_' <|> char '\''
         , T.opStart = letter
         , T.opLetter = alphaNum <|> oneOf "*#&?^$"
-        , T.reservedNames = ["if", "then", "else", "Bool", "True", "False"]
+        , T.reservedNames = ["if", "then", "else", "Bool", "True", "False", "succ", "pred", "iszero"]
         , T.reservedOpNames = []
         , T.caseSensitive = True
         }
@@ -75,8 +76,13 @@ parseBoolType = do
     reserved "Bool"
     return TyBool
 
+parseNatType :: Parsec String u TmType
+parseNatType = do
+    reserved "Nat"
+    return TyNat
+
 parseType :: Parsec String u TmType
-parseType = parseBoolType
+parseType = parseBoolType <|> parseNatType
 -- parseType = msum [parseBoolType]
 
 parseAbs :: LCParser
@@ -108,11 +114,47 @@ parseBool = parseTrue <|> parseFalse
     where parseTrue = do {pos <- getPosition; reserved "True"; return $ TmTrue (infoFrom pos)}
           parseFalse = do {pos <- getPosition; reserved "False"; return $ TmFalse (infoFrom pos)}
 
+unitParser :: LCParser
+unitParser = msum [parseZero, parseVar] -- Parse a single unit such zero and a var
+
+parseZero :: LCParser
+parseZero = do
+    pos <- getPosition
+    _ <- char '0'
+    spaces
+    return $ TmZero (infoFrom pos)
+
+parseSucc :: LCParser
+parseSucc = do
+    pos <- getPosition
+    reserved "succ"
+    t <- unitParser <|> parens parseTerm -- succ unit or succ (...) is legal where unit is a var or 0
+    return $ TmSucc (infoFrom pos) t
+
+parsePred :: LCParser
+parsePred = do
+    pos <- getPosition
+    reserved "pred"
+    t <- unitParser <|> parens parseTerm -- pred unit or pred (...) is legal where unit is a var or 0
+    return $ TmPred (infoFrom pos) t
+
+parseNat :: LCParser
+parseNat = parsePred <|> parseSucc <|> parseZero
+
+parseIsZero :: LCParser
+parseIsZero = do
+    pos <- getPosition
+    reserved "iszero"
+    t <- unitParser <|> parens parseTerm -- iszero unit or iszero (...) is legal where unit is a var or 0
+    return $ TmIsZero (infoFrom pos) t
+
 parseNonApp :: LCParser
 parseNonApp =  parens parseTerm
            <|> parseIf
            <|> parseBool
            <|> parseAbs
+           <|> parseNat
+           <|> parseIsZero
            <|> try parseVar
 
 parseTerm :: LCParser
@@ -124,4 +166,4 @@ parseWith :: Parsec String [u] a -> String -> Either ParseError a
 parseWith p = runParser p [] "Untyped Lambda Calculus"
 
 lcParse :: String -> Either ParseError Term
-lcParse = parseWith parseTerm
+lcParse = parseWith (parseTerm <* eof)
