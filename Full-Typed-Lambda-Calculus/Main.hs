@@ -20,7 +20,7 @@ runFile path = do
 checkType :: Term -> IO()
 checkType t = let ty = typeOf [] t in
     case ty of
-        Left e -> print e
+        Left e -> putStrLn e
         Right _ -> evalTerm t
 
 evalTerm :: Term -> IO ()

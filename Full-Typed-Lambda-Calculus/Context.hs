@@ -11,7 +11,7 @@ data TmType = TyBool
             | TyArrow TmType TmType
             deriving Eq
 
-data Info = Info {row :: Int, col :: Int} deriving Show
+data Info = Info {row :: Int, col :: Int}
 
 instance Show TmType where
     show TyBool = "Bool"
@@ -19,6 +19,9 @@ instance Show TmType where
     show (TyArrow t1 t2) = case t1 of
         TyArrow _ _ -> "(" ++ show t1 ++ ")" ++ " -> " ++ show t2
         _ -> show t1 ++ " -> " ++ show t2
+
+instance Show Info where
+    show (Info r c) = show r ++ ":" ++ show c
 
 addBinding :: Context -> String -> Binding -> Context
 addBinding ctx var bind = (var, bind) : ctx
@@ -33,4 +36,4 @@ getTypeFromContext fi ctx i =
           bindAt (x:xs) n | n == 0 = Just x
                           | n  > 0 = bindAt xs (n - 1)
           bindAt _ _ = Nothing
-          c = bindAt (reverse ctx) i
+          c = bindAt ctx i

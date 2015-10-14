@@ -12,8 +12,13 @@ typeOf ctx (TmIf info c t1 t2) = do -- T-IF
     tyT2 <- typeOf ctx t2
     case tyC of
         TyBool | tyT1 == tyT2 -> Right tyT1
-               | otherwise -> Left $ show info ++ ": Two branches have different types"
-        _ -> Left $ show info ++ ": Except Bool type for the condition"
+               | otherwise -> Left $ show info ++ ":" ++
+                              "\n    Two branches are expected to have a same type." ++
+                              "\n    " ++ printTerm ctx t1 ++ " : " ++ show tyT1 ++
+                              "\n    " ++ printTerm ctx t2 ++ " : " ++ show tyT2
+        _ -> Left $ show info ++ ":" ++
+                    "\n    Expect type 'Bool' as if expression's condition" ++
+                    "\n    " ++ printTerm ctx c ++ " : " ++ show tyC
 typeOf ctx (TmVar info i _) = getTypeFromContext info ctx i -- T-VAR
 typeOf ctx (TmAbs _ s ty t) = do -- T-ABS
     let ctx' = addBinding ctx s (VarBind ty)
@@ -24,18 +29,32 @@ typeOf ctx (TmApp info t1 t2) = do -- T-APP
     tyT2 <- typeOf ctx t2
     case tyT1 of
         (TyArrow tyT11 tyT12) | tyT11 == tyT2 -> Right tyT12
-                              | otherwise     -> Left $ show info ++ ": Parameter type mismatch"
-        _ -> Left $ show info ++ ": Arrow type expected"
+                              | otherwise     -> Left $ show info ++ ":" ++
+                                                 "\n    Expect type '" ++ show tyT11 ++ "' but the actual type is '" ++ show tyT2 ++ "'" ++
+                                                 "\n    " ++ printTerm ctx t1 ++ " : " ++ show tyT1 ++
+                                                 "\n    " ++ printTerm ctx t2 ++ " : " ++ show tyT2
+        _ -> Left $ show info ++ ":" ++
+                    "\n    Arrow type expected" ++
+                    "\n    " ++ printTerm ctx t1 ++ " : " ++ show tyT1
 typeOf _ (TmZero {}) = Right TyNat -- T-ZERO
-typeOf ctx (TmSucc info t) = let ty = typeOf ctx t in -- T-SUCC
+typeOf ctx (TmSucc info t) = do -- T-SUCC
+    ty <- typeOf ctx t
     case ty of
-        Right TyNat -> ty
-        _ -> Left $ show info ++ ": Except a nature number as succ's parameter"
-typeOf ctx (TmPred info t) = let ty = typeOf ctx t in -- T-PRED
+        TyNat -> Right ty
+        _ -> Left $ show info ++ ":" ++
+                    "\n    Expect a nature number as succ's parameter" ++
+                    "\n    " ++ printTerm ctx t ++ " : " ++ show ty
+typeOf ctx (TmPred info t) = do -- T-PRED
+    ty <- typeOf ctx t
     case ty of
-        Right TyNat -> ty
-        _ -> Left $ show info ++ ": Except a nature number as pred's parameter"
-typeOf ctx (TmIsZero info t) = let ty = typeOf ctx t in -- T-ISZERO
+        TyNat -> Right ty
+        _ -> Left $ show info ++ ":" ++
+                    "\n    Except a nature number as pred's parameter" ++
+                    "\n    " ++ printTerm ctx t ++ " : " ++ show ty
+typeOf ctx (TmIsZero info t) = do -- T-ISZERO
+    ty <- typeOf ctx t
     case ty of
-        Right TyNat -> Right TyBool
-        _ -> Left $ show info ++ ": Except a nature number as iszero's parameter"
+        TyNat -> Right TyBool
+        _ -> Left $ show info ++ ":" ++
+                    "\n    Except a nature number as iszero's parameter" ++
+                    "\n    " ++ printTerm ctx t ++ " : " ++ show ty

@@ -115,7 +115,7 @@ parseBool = parseTrue <|> parseFalse
           parseFalse = do {pos <- getPosition; reserved "False"; return $ TmFalse (infoFrom pos)}
 
 unitParser :: LCParser
-unitParser = msum [parseZero, parseVar] -- Parse a single unit such zero and a var
+unitParser = msum [parseZero, parseVar, parseBool] -- Parse a single unit such zero and a var
 
 parseZero :: LCParser
 parseZero = do

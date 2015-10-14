@@ -1,6 +1,7 @@
 module Syntax where
 
 import Context
+import Data.List (isPrefixOf)
 
 data Term = TmTrue Info
           | TmFalse Info
@@ -42,3 +43,35 @@ isNv :: Term -> Bool
 isNv (TmZero {}) = True
 isNv (TmSucc _ t) = isNv t
 isNv _ = False
+
+-- printing
+-- rebuild context and print
+printTerm :: Context -> Term -> String
+printTerm ctx (TmAbs _ name ty t1) = let (ctx', name') = pickFreshName ctx name in
+  "(λ" ++ name' ++ ": " ++ show ty ++ "." ++ printTerm ctx' t1 ++ ")"
+printTerm ctx (TmApp _ t1 t2) = "(" ++ printTerm ctx t1 ++ " " ++ printTerm ctx t2 ++ ")"
+printTerm ctx (TmVar info x len) = if length ctx == len
+                                  then indexToName info ctx x
+                                  else "[bad index: " ++ show ctx ++ " len is: " ++ show len ++ "]"
+printTerm ctx (TmIf _ c t1 t2) = "if " ++ printTerm ctx c ++ " then " ++ printTerm ctx t1 ++ " else " ++ printTerm ctx t2
+printTerm ctx (TmIsZero _ t) = "iszero " ++ printTerm ctx t
+printTerm ctx (TmSucc _ t) = "succ " ++ printTerm ctx t
+printTerm ctx (TmPred _ t) = "pred " ++ printTerm ctx t
+printTerm _ t = show t
+
+pickFreshName :: Context -> String -> (Context, String)
+pickFreshName ctx name = (ctx', name')
+  where (nc, ns) = foldr func (0, []) ctx
+        name' = newName nc ns
+        ctx' = (name, NameBind) : ctx
+        func (n, _) (c, lst)
+            | n == name = (c + 1, lst)
+            | name `isPrefixOf` n = (c, n : lst)
+            | otherwise = (c, lst)
+        newName c ns' = let n' = if c > 0 then name ++ show c else name in
+          if n' `elem` ns' then newName (c+1) ns' else n'
+
+indexToName :: Info -> Context -> Int -> String
+indexToName _ ctx index = fst $ f ctx index
+  where f (x:_) 0 = x
+        f (x:xs) n = f xs (n-1)

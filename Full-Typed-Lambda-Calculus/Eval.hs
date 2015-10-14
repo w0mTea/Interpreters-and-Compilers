@@ -1,7 +1,5 @@
 module Eval where
 import Syntax
-import Context
-import Data.List (isPrefixOf)
 import Control.Monad (liftM)
 
 -- apply a function on Each subterm of the given term
@@ -13,6 +11,10 @@ tmMap f = func 0
         func _ t@(TmTrue {}) = t
         func _ t@(TmFalse {}) = t
         func c (TmIf info t0 t1 t2) = TmIf info (func c t0) (func c t1) (func c t2)
+        func _ t@(TmZero {}) = t
+        func c (TmIsZero info t) = TmIsZero info $ func c t
+        func c (TmSucc info t) = TmSucc info $ func c t
+        func c (TmPred info t) = TmPred info $ func c t
 
 tmShift :: Int -> Term -> Term
 tmShift step = tmMap f
@@ -59,31 +61,3 @@ eval t = let t' = eval1 t in
   case t' of
     (Just term) -> eval term
     Nothing -> t
-
--- printing
--- rebuild context and print
-printTerm :: Context -> Term -> String
-printTerm ctx (TmAbs _ name ty t1) = let (ctx', name') = pickFreshName ctx name in
-  "(λ" ++ name' ++ ": " ++ show ty ++ "." ++ printTerm ctx' t1 ++ ")"
-printTerm ctx (TmApp _ t1 t2) = "(" ++ printTerm ctx t1 ++ " " ++ printTerm ctx t2 ++ ")"
-printTerm ctx (TmVar info x len) = if length ctx == len
-                                  then indexToName info ctx x
-                                  else "[bad index: " ++ show ctx ++ " len is: " ++ show len ++ "]"
-printTerm _ t = show t
-
-pickFreshName :: Context -> String -> (Context, String)
-pickFreshName ctx name = (ctx', name')
-  where (nc, ns) = foldr func (0, []) ctx
-        name' = newName nc ns
-        ctx' = (name, NameBind) : ctx
-        func (n, _) (c, lst)
-            | n == name = (c + 1, lst)
-            | name `isPrefixOf` n = (c, n : lst)
-            | otherwise = (c, lst)
-        newName c ns' = let n' = if c > 0 then name ++ show c else name in
-          if n' `elem` ns' then newName (c+1) ns' else n'
-
-indexToName :: Info -> Context -> Int -> String
-indexToName _ ctx index = fst $ f ctx index
-  where f (x:_) 0 = x
-        f (x:xs) n = f xs (n-1)
