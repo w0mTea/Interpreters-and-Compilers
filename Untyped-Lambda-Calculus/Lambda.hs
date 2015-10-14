@@ -102,7 +102,7 @@ parseTerm = chainl1 parseNonApp $ do
   return $ TmApp (infoFrom pos)
 
 lcParse :: String -> Either ParseError Term
-lcParse = parseWith parseTerm
+lcParse = parseWith (parseTerm <* eof)
 --}
 
 --{ Core functions

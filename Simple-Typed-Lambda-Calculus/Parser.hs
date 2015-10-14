@@ -124,4 +124,4 @@ parseWith :: Parsec String [u] a -> String -> Either ParseError a
 parseWith p = runParser p [] "Untyped Lambda Calculus"
 
 lcParse :: String -> Either ParseError Term
-lcParse = parseWith parseTerm
+lcParse = parseWith (parseTerm <* eof)
