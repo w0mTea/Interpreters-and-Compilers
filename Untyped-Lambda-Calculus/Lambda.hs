@@ -178,8 +178,15 @@ noEval t = let t' = noEval1 t in
 -- rebuild context and print
 printTerm :: Context -> Term -> String
 printTerm ctx (TmAbs _ name t1) = let (ctx', name') = pickFreshName ctx name in
-  "(λ" ++ name' ++ "." ++ printTerm ctx' t1 ++ ")"
-printTerm ctx (TmApp _ t1 t2) = "(" ++ printTerm ctx t1 ++ " " ++ printTerm ctx t2 ++ ")"
+  "λ" ++ name' ++ "." ++ printTerm ctx' t1
+printTerm ctx (TmApp _ t1 t2) =
+    let s1 = case t1 of
+                (TmAbs {}) -> "(" ++ printTerm ctx t1 ++ ")"
+                _ -> printTerm ctx t1
+        s2 = case t2 of
+                (TmApp {}) -> "(" ++ printTerm ctx t2 ++ ")"
+                _ -> printTerm ctx t2
+    in s1 ++ " " ++ s2
 printTerm ctx (TmVar info x len) = if length ctx == len
                                   then indexToName info ctx x
                                   else "[bad index: " ++ show ctx ++ " len is: " ++ show len ++ "]"
