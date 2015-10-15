@@ -137,7 +137,7 @@ tmAppAbs (TmAbs _ _ t) v = tmMaintainLength $ tmShift (-1) $ tmSubst 0 (tmShift 
 --}
 
 --{ Evaluatino functions
-
+-- Call by value
 isVal :: Term -> Bool
 isVal (TmAbs {}) = True
 isVal _ = False
@@ -157,6 +157,22 @@ eval t = let t' = eval1 t in
     (Just term) -> eval term
     Nothing -> t
 
+-- Normal Order
+noEval1 :: Term -> Maybe Term
+noEval1 (TmApp _ t@(TmAbs {}) t2) = return $ tmAppAbs t t2
+noEval1 (TmApp info t1@(TmApp {}) t2) = let t1' = noEval1 t1 in
+    liftM (flip (TmApp info) t2) t1'
+noEval1 (TmApp info t1@(TmVar {}) t2) = let t2' = noEval1 t2 in
+    liftM (TmApp info t1) t2'
+noEval1 (TmAbs info n t) = let t' = noEval1 t in
+    liftM (TmAbs info n) t'
+noEval1 _ = Nothing
+
+noEval :: Term -> Term
+noEval t = let t' = noEval1 t in
+    case t' of
+        (Just term) -> noEval term
+        Nothing -> tmMaintainLength t
 --}
 
 --{ Printing functions
