@@ -30,8 +30,13 @@ tmSubst j s = tmMap f
         f _ _ = error "Error in tmSubst"
 
 -- E-APPABS
+tmMaintainLength :: Term -> Term
+tmMaintainLength = tmMap f
+    where f c (TmVar i n _) = TmVar i n c
+          f _ _ = error "Error in tmMaintainLength"
+
 tmAppAbs :: Term -> Term -> Term
-tmAppAbs (TmAbs _ _ _ t) v = tmShift (-1) $ tmSubst 0 (tmShift 1 v) t
+tmAppAbs (TmAbs _ _ _ t) v = tmMaintainLength $ tmShift (-1) $ tmSubst 0 (tmShift 1 v) t
 
 eval1 :: Term -> Maybe Term
 eval1 (TmApp info t@(TmAbs {}) v2)

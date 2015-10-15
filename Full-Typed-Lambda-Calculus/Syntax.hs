@@ -63,7 +63,7 @@ pickFreshName :: Context -> String -> (Context, String)
 pickFreshName ctx name = (ctx', name')
   where (nc, ns) = foldr func (0, []) ctx
         name' = newName nc ns
-        ctx' = (name, NameBind) : ctx
+        ctx' = (name', NameBind) : ctx
         func (n, _) (c, lst)
             | n == name = (c + 1, lst)
             | name `isPrefixOf` n = (c, n : lst)
