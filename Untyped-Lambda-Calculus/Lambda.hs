@@ -126,8 +126,13 @@ tmSubst j s = tmMap f
                             | otherwise = t
         f _ _ = error "Error in tmSubst"
 
+tmMaintainLength :: Term -> Term
+tmMaintainLength = tmMap f
+    where f c (TmVar i n _) = TmVar i n c
+          f _ _ = error "Error in tmMaintainLength"
+
 tmAppAbs :: Term -> Term -> Term
-tmAppAbs (TmAbs _ _ t) v = tmShift (-1) $ tmSubst 0 (tmShift 1 v) t
+tmAppAbs (TmAbs _ _ t) v = tmMaintainLength $ tmShift (-1) $ tmSubst 0 (tmShift 1 v) t
 
 --}
 
@@ -169,7 +174,7 @@ pickFreshName :: Context -> String -> (Context, String)
 pickFreshName ctx name = (ctx', name')
   where (nc, ns) = foldr func (0, []) ctx
         name' = newName nc ns
-        ctx' = (name, EmptyBinding) : ctx
+        ctx' = (name', EmptyBinding) : ctx
         func (n, _) (c, lst)
             | n == name = (c + 1, lst)
             | name `isPrefixOf` n = (c, n : lst)
