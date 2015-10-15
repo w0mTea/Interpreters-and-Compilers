@@ -1,7 +1,5 @@
 import Text.Parsec
-import Text.Parsec.Combinator (between, chainl1)
-import Data.List (isPrefixOf)
-import System.IO
+import Data.List (isPrefixOf, partition)
 import System.Environment
 import Control.Monad (liftM)
 
@@ -208,7 +206,24 @@ indexToName _ ctx index = fst $ f ctx index
 main :: IO [()]
 main = do
   args <- getArgs
-  mapM runFile args
+  let (flag, files) = partition (== "--normal-order") args
+  case flag of
+      [] -> mapM runFile files
+      _ -> mapM noRunFile files
+
+noRunFile :: String -> IO()
+noRunFile path = do
+    s <- readFile path
+    let term = lcParse s
+    case term of
+        Left e -> print e
+        Right t -> noEvalTerm t
+
+noEvalTerm :: Term -> IO ()
+noEvalTerm t = let t' = noEval t in
+    if isVal t'
+        then putStrLn $ printTerm [] t'
+        else putStrLn "Evaluating Error"
 
 runFile :: String -> IO ()
 runFile path = do
