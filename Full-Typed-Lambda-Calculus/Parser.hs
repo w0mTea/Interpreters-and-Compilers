@@ -19,7 +19,7 @@ langDef = T.LanguageDef
         , T.identLetter = alphaNum <|> char '_' <|> char '\''
         , T.opStart = letter
         , T.opLetter = alphaNum <|> oneOf "*#&?^$"
-        , T.reservedNames = ["if", "then", "else", "Bool", "True", "False", "succ", "pred", "iszero"]
+        , T.reservedNames = ["if", "then", "else", "Bool", "True", "False", "succ", "pred", "iszero", "unit", "Unit"]
         , T.reservedOpNames = []
         , T.caseSensitive = True
         }
@@ -81,9 +81,13 @@ parseNatType = do
     reserved "Nat"
     return TyNat
 
+parseUnitType :: Parsec String u TmType
+parseUnitType = do
+    reserved "Unit"
+    return TyUnit
+
 parseType :: Parsec String u TmType
-parseType = parseBoolType <|> parseNatType
--- parseType = msum [parseBoolType]
+parseType = msum [parseBoolType, parseNatType, parseUnitType]
 
 parseAbs :: LCParser
 parseAbs = do

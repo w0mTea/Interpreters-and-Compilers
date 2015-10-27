@@ -58,3 +58,4 @@ typeOf ctx (TmIsZero info t) = do -- T-ISZERO
         _ -> Left $ show info ++ ":" ++
                     "\n    Except a nature number as iszero's parameter" ++
                     "\n    " ++ printTerm ctx t ++ " : " ++ show ty
+typeOf _ (TmUnit {}) = return TyUnit

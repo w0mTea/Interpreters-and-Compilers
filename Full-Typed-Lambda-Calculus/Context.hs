@@ -9,7 +9,7 @@ data Binding = NameBind
 data TmType = TyBool
             | TyNat
             | TyArrow TmType TmType
-            deriving Eq
+            | TyUnit
 
 data Info = Info {row :: Int, col :: Int}
 
@@ -19,6 +19,15 @@ instance Show TmType where
     show (TyArrow t1 t2) = case t1 of
         TyArrow _ _ -> "(" ++ show t1 ++ ")" ++ " -> " ++ show t2
         _ -> show t1 ++ " -> " ++ show t2
+    show TyUnit = "Unit"
+
+instance Eq TmType where
+    TyUnit == _ = True
+    _ == TyUnit = True
+    TyBool == TyBool = True
+    TyNat == TyNat = True
+    (TyArrow t1 t2) == (TyArrow t1' t2') = t1 == t1' && t2 == t2'
+    _ == _ = False
 
 instance Show Info where
     show (Info r c) = show r ++ ":" ++ show c
