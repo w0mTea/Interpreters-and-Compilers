@@ -17,6 +17,8 @@ tmMap f = func 0
         func c (TmPred info t) = TmPred info $ func c t
         func _ t@(TmUnit {}) = t
         func c (TmAscrip info t ty) = TmAscrip info (func c t) ty
+        -- Treat let x = t1 in t2 as (\x:T.t2) t1 and then the rule for let is clear
+        func c (TmLet info s t1 t2) = TmLet info s (func c t1) $ func (c + 1) t2
 
 tmShift :: Int -> Term -> Term
 tmShift step = tmMap f
@@ -37,8 +39,11 @@ tmMaintainLength = tmMap f
     where f c (TmVar i n _) = TmVar i n c
           f _ _ = error "Error in tmMaintainLength"
 
+tmAppSubst :: Term -> Term -> Term
+tmAppSubst term v = tmMaintainLength $ tmShift (-1) $ tmSubst 0 (tmShift 1 v) term
+
 tmAppAbs :: Term -> Term -> Term
-tmAppAbs (TmAbs _ _ _ t) v = tmMaintainLength $ tmShift (-1) $ tmSubst 0 (tmShift 1 v) t
+tmAppAbs (TmAbs _ _ _ t) = tmAppSubst t
 
 eval1 :: Term -> Maybe Term
 eval1 (TmApp info t@(TmAbs {}) v2)
@@ -63,6 +68,8 @@ eval1 (TmIsZero info t) | not $ isVal t = do {t' <- eval1 t; return $ TmIsZero i
 eval1 (TmIsZero info (TmSucc {})) = return $ TmFalse info -- E-ISZEROSUCC
 eval1 (TmAscrip info t ty) | isVal t = return t -- E-ASCRIBE
                            | otherwise = do {t' <- eval1 t; return $ TmAscrip info t' ty} -- E-ASCRIBE1
+eval1 (TmLet info s t1 t2) | isVal t1 = return $ tmAppSubst t2 t1 -- E-LETV
+                           | otherwise = do {t1' <- eval1 t1; return $ TmLet info s t1' t2} -- E-LET
 eval1 _ = Nothing
 
 eval :: Term -> Term

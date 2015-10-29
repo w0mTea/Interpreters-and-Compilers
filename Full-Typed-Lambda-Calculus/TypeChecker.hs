@@ -67,3 +67,8 @@ typeOf ctx (TmAscrip info t ty) = do -- T-ASCRIBE
                 "\n    Type dismatch in as-expression" ++
                 "\n    " ++ printTerm ctx t ++ " : " ++ show ty' ++
                 "\n    but the type given in as-expression is " ++ show ty
+typeOf ctx (TmLet _ s t1 t2) = do -- T-LET
+    ty1 <- typeOf ctx t1
+    let ctx' = addBinding ctx s (VarBind ty1)
+    ty2 <- typeOf ctx' t2
+    Right ty2

@@ -19,7 +19,9 @@ langDef = T.LanguageDef
         , T.identLetter = alphaNum <|> char '_' <|> char '\''
         , T.opStart = letter
         , T.opLetter = alphaNum <|> oneOf "*#&?^$"
-        , T.reservedNames = ["if", "then", "else", "Bool", "True", "False", "succ", "pred", "iszero", "unit", "Unit", "as"]
+        , T.reservedNames = ["if", "then", "else", "Bool", "True", "False",
+                             "succ", "pred", "iszero", "unit", "Unit", "as",
+                             "let", "in"]
         , T.reservedOpNames = []
         , T.caseSensitive = True
         }
@@ -176,6 +178,19 @@ parseUnit = do
     reserved "unit"
     return $ TmUnit (infoFrom pos)
 
+parseLet :: LCParser
+parseLet = do
+    pos <- getPosition
+    reserved "let"
+    n <- ident
+    _ <- symbol "="
+    t1 <- parseTerm
+    modifyState ((n, NameBind) :)
+    reserved "in"
+    t2 <- parseTerm
+    modifyState tail
+    return $ TmLet (infoFrom pos) n t1 t2
+
 parseUnitTerm :: LCParser
 parseUnitTerm = do
     ts <- sepBy parseTerm semi
@@ -190,6 +205,7 @@ parseNonApp =  parens parseTerm
            <|> parseNat
            <|> parseIsZero
            <|> parseUnit
+           <|> parseLet
            <|> try parseVar
 
 parseAscrip :: LCParser -> LCParser

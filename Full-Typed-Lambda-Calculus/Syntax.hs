@@ -15,6 +15,7 @@ data Term = TmTrue Info
           | TmIsZero Info Term
           | TmUnit Info
           | TmAscrip Info Term TmType
+          | TmLet Info String Term Term -- let name = term in term
 
 infoOf :: Term -> Info
 infoOf (TmTrue i) = i
@@ -29,6 +30,7 @@ infoOf (TmPred i _) = i
 infoOf (TmIsZero i _) = i
 infoOf (TmUnit i) = i
 infoOf (TmAscrip i _ _) = i
+infoOf (TmLet i _ _ _) = i
 
 instance Show Term where
     show = pprint 0
@@ -49,6 +51,7 @@ pprint i (TmPred _ t) = indentBy i ++ "pred " ++ show t
 pprint i (TmIsZero _ t) = indentBy i ++ "iszero " ++ show t
 pprint i (TmUnit {}) = indentBy i ++ "unit"
 pprint i (TmAscrip _ t ty) = indentBy i ++ show t ++ " as " ++ show ty
+pprint i (TmLet _ s t1 t2) = indentBy i ++ "let " ++ s ++ " = " ++ show t1 ++ "\n" ++ indentBy i ++ "in " ++ pprint i t2
 
 isVal :: Term -> Bool
 isVal (TmAbs {}) = True
@@ -82,6 +85,7 @@ printTerm ctx (TmIf _ c t1 t2) = "if " ++ printTerm ctx c ++ " then " ++ printTe
 printTerm ctx (TmIsZero _ t) = "iszero " ++ printTerm ctx t
 printTerm ctx (TmSucc _ t) = "succ " ++ printTerm ctx t
 printTerm ctx (TmPred _ t) = "pred " ++ printTerm ctx t
+printTerm ctx (TmLet _ s t1 t2) = "let " ++ s ++ " = " ++ printTerm ctx t1 ++ "\nin " ++ printTerm ctx t2
 printTerm _ t = show t
 
 pickFreshName :: Context -> String -> (Context, String)
