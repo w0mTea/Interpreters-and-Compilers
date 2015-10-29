@@ -13,6 +13,9 @@ data TmType = TyBool
 
 data Info = Info {row :: Int, col :: Int}
 
+dummyinfo :: Info
+dummyinfo = Info 0 0
+
 instance Show TmType where
     show TyBool = "Bool"
     show TyNat = "Nat"

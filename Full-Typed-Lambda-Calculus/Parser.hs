@@ -15,7 +15,7 @@ langDef = T.LanguageDef
         , T.commentEnd = "*/"
         , T.commentLine = "//"
         , T.nestedComments = False
-        , T.identStart = letter <|> char '_'
+        , T.identStart = letter
         , T.identLetter = alphaNum <|> char '_' <|> char '\''
         , T.opStart = letter
         , T.opLetter = alphaNum <|> oneOf "*#&?^$"
@@ -42,8 +42,17 @@ symbol = T.symbol lexer
 colon :: ParsecT String u Identity String
 colon = T.colon lexer
 
+semi :: ParsecT String u Identity String
+semi = T.semi lexer
+
 dot :: ParsecT String u Identity String
 dot = T.dot lexer
+
+wildcard :: ParsecT String u Identity String
+wildcard = T.symbol lexer "_"
+
+arrow :: ParsecT String u Identity String
+arrow = T.symbol lexer "->"
 
 parens :: ParsecT String u Identity a -> ParsecT String u Identity a
 parens = T.parens lexer
@@ -86,14 +95,22 @@ parseUnitType = do
     reserved "Unit"
     return TyUnit
 
+parsePrimitiveType :: Parsec String u TmType
+parsePrimitiveType = msum [parseBoolType, parseNatType, parseUnitType]
+
+parseNonArrowType =  parsePrimitiveType
+                 <|> parens parseType
+
 parseType :: Parsec String u TmType
-parseType = msum [parseBoolType, parseNatType, parseUnitType]
+parseType = do
+    tys <- sepBy parseNonArrowType arrow
+    return $ foldr1 TyArrow tys
 
 parseAbs :: LCParser
 parseAbs = do
     pos <- getPosition
     _ <- symbol "\\"
-    n <- ident
+    n <- wildcard <|> ident
     _ <- colon
     ty <- parseType
     _ <- dot
@@ -119,7 +136,7 @@ parseBool = parseTrue <|> parseFalse
           parseFalse = do {pos <- getPosition; reserved "False"; return $ TmFalse (infoFrom pos)}
 
 unitParser :: LCParser
-unitParser = msum [parseZero, parseVar, parseBool] -- Parse a single unit such zero and a var
+unitParser = msum [parseZero, parseVar, parseBool, parseUnit] -- Parse a single unit such zero and a var
 
 parseZero :: LCParser
 parseZero = do
@@ -152,6 +169,18 @@ parseIsZero = do
     t <- unitParser <|> parens parseTerm -- iszero unit or iszero (...) is legal where unit is a var or 0
     return $ TmIsZero (infoFrom pos) t
 
+parseUnit :: LCParser
+parseUnit = do
+    pos <- getPosition
+    reserved "unit"
+    return $ TmUnit (infoFrom pos)
+
+parseUnitTerm :: LCParser
+parseUnitTerm = do
+    ts <- sepBy parseTerm semi
+    return $ foldr1 unitToApp ts
+    where unitToApp t1 t2 = TmApp dummyinfo (TmAbs dummyinfo "" TyUnit t2) t1
+
 parseNonApp :: LCParser
 parseNonApp =  parens parseTerm
            <|> parseIf
@@ -159,6 +188,7 @@ parseNonApp =  parens parseTerm
            <|> parseAbs
            <|> parseNat
            <|> parseIsZero
+           <|> parseUnit
            <|> try parseVar
 
 parseTerm :: LCParser
