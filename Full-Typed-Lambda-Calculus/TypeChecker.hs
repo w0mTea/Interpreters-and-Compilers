@@ -59,3 +59,11 @@ typeOf ctx (TmIsZero info t) = do -- T-ISZERO
                     "\n    Except a nature number as iszero's parameter" ++
                     "\n    " ++ printTerm ctx t ++ " : " ++ show ty
 typeOf _ (TmUnit {}) = return TyUnit
+typeOf ctx (TmAscrip info t ty) = do -- T-ASCRIBE
+    ty' <- typeOf ctx t
+    if ty == ty'
+    then Right ty
+    else Left $ show info ++ ":" ++
+                "\n    Type dismatch in as-expression" ++
+                "\n    " ++ printTerm ctx t ++ " : " ++ show ty' ++
+                "\n    but the type given in as-expression is " ++ show ty

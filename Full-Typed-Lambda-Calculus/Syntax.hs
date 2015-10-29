@@ -14,7 +14,21 @@ data Term = TmTrue Info
           | TmPred Info Term
           | TmIsZero Info Term
           | TmUnit Info
+          | TmAscrip Info Term TmType
 
+infoOf :: Term -> Info
+infoOf (TmTrue i) = i
+infoOf (TmFalse i) = i
+infoOf (TmIf i _ _ _) = i
+infoOf (TmVar i _ _) = i
+infoOf (TmAbs i _ _ _) = i
+infoOf (TmApp i _ _) = i
+infoOf (TmZero i) = i
+infoOf (TmSucc i _) = i
+infoOf (TmPred i _) = i
+infoOf (TmIsZero i _) = i
+infoOf (TmUnit i) = i
+infoOf (TmAscrip i _ _) = i
 
 instance Show Term where
     show = pprint 0
@@ -33,6 +47,8 @@ pprint i (TmZero _) = indentBy i ++ "0"
 pprint i (TmSucc _ t) = indentBy i ++ "succ " ++ show t
 pprint i (TmPred _ t) = indentBy i ++ "pred " ++ show t
 pprint i (TmIsZero _ t) = indentBy i ++ "iszero " ++ show t
+pprint i (TmUnit {}) = indentBy i ++ "unit"
+pprint i (TmAscrip _ t ty) = indentBy i ++ show t ++ " as " ++ show ty
 
 isVal :: Term -> Bool
 isVal (TmAbs {}) = True

@@ -15,6 +15,8 @@ tmMap f = func 0
         func c (TmIsZero info t) = TmIsZero info $ func c t
         func c (TmSucc info t) = TmSucc info $ func c t
         func c (TmPred info t) = TmPred info $ func c t
+        func _ t@(TmUnit {}) = t
+        func c (TmAscrip info t ty) = TmAscrip info (func c t) ty
 
 tmShift :: Int -> Term -> Term
 tmShift step = tmMap f
@@ -59,6 +61,8 @@ eval1 (TmPred _ (TmSucc _ nv)) = return nv -- E-PREDSUCC
 eval1 (TmIsZero info (TmZero {})) = return $ TmTrue info -- E-ISZEROZERO
 eval1 (TmIsZero info t) | not $ isVal t = do {t' <- eval1 t; return $ TmIsZero info t'} -- E-ISZERO
 eval1 (TmIsZero info (TmSucc {})) = return $ TmFalse info -- E-ISZEROSUCC
+eval1 (TmAscrip info t ty) | isVal t = return t -- E-ASCRIBE
+                           | otherwise = do {t' <- eval1 t; return $ TmAscrip info t' ty} -- E-ASCRIBE1
 eval1 _ = Nothing
 
 eval :: Term -> Term

@@ -15,11 +15,11 @@ langDef = T.LanguageDef
         , T.commentEnd = "*/"
         , T.commentLine = "//"
         , T.nestedComments = False
-        , T.identStart = letter
+        , T.identStart = oneOf ['a' .. 'z']
         , T.identLetter = alphaNum <|> char '_' <|> char '\''
         , T.opStart = letter
         , T.opLetter = alphaNum <|> oneOf "*#&?^$"
-        , T.reservedNames = ["if", "then", "else", "Bool", "True", "False", "succ", "pred", "iszero", "unit", "Unit"]
+        , T.reservedNames = ["if", "then", "else", "Bool", "True", "False", "succ", "pred", "iszero", "unit", "Unit", "as"]
         , T.reservedOpNames = []
         , T.caseSensitive = True
         }
@@ -98,6 +98,7 @@ parseUnitType = do
 parsePrimitiveType :: Parsec String u TmType
 parsePrimitiveType = msum [parseBoolType, parseNatType, parseUnitType]
 
+parseNonArrowType :: Parsec String u TmType
 parseNonArrowType =  parsePrimitiveType
                  <|> parens parseType
 
@@ -191,8 +192,13 @@ parseNonApp =  parens parseTerm
            <|> parseUnit
            <|> try parseVar
 
+parseAscrip :: LCParser -> LCParser
+parseAscrip p = do
+    t <- p
+    option t $ do {_ <- symbol "as"; ty <- parseType; return $ TmAscrip (infoOf t) t ty}
+
 parseTerm :: LCParser
-parseTerm = chainl1 (blank >> parseNonApp) $ do
+parseTerm = chainl1 (blank >> parseAscrip parseNonApp) $ do
     pos <- getPosition
     return $ TmApp (infoFrom pos)
 
