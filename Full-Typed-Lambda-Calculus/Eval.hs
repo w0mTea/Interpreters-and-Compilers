@@ -19,6 +19,9 @@ tmMap f = func 0
         func c (TmAscrip info t ty) = TmAscrip info (func c t) ty
         -- Treat let x = t1 in t2 as (\x:T.t2) t1 and then the rule for let is clear
         func c (TmLet info s t1 t2) = TmLet info s (func c t1) $ func (c + 1) t2
+        func c (TmTuple info ts) = TmTuple info ts'
+            where ts' = map (func c) ts
+        func c (TmTupleProj info t n) = TmTupleProj info (func c t) n
 
 tmShift :: Int -> Term -> Term
 tmShift step = tmMap f
@@ -70,6 +73,15 @@ eval1 (TmAscrip info t ty) | isVal t = return t -- E-ASCRIBE
                            | otherwise = do {t' <- eval1 t; return $ TmAscrip info t' ty} -- E-ASCRIBE1
 eval1 (TmLet info s t1 t2) | isVal t1 = return $ tmAppSubst t2 t1 -- E-LETV
                            | otherwise = do {t1' <- eval1 t1; return $ TmLet info s t1' t2} -- E-LET
+eval1 (TmTupleProj info t@(TmTuple _ ts) n)
+    | isVal t = return $ ts !! n -- E-PROJTUPLE
+    | otherwise = do {t' <- eval1 t; return $ TmTupleProj info t' n} -- E-PROJ
+eval1 (TmTuple info t) =
+    let (vs, ts) = span isVal t
+    in case ts of
+        [] -> Nothing -- evaluate complete
+        (x:xs) -> do {x' <- eval1 x; return $ TmTuple info $ vs ++ [x'] ++ xs} -- E-TUPLE
+
 eval1 _ = Nothing
 
 eval :: Term -> Term

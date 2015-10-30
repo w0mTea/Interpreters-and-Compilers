@@ -16,6 +16,8 @@ data Term = TmTrue Info
           | TmUnit Info
           | TmAscrip Info Term TmType
           | TmLet Info String Term Term -- let name = term in term
+          | TmTuple Info [Term] -- Empty tuple is not allowed, Int means length
+          | TmTupleProj Info Term Int
 
 infoOf :: Term -> Info
 infoOf (TmTrue i) = i
@@ -31,6 +33,8 @@ infoOf (TmIsZero i _) = i
 infoOf (TmUnit i) = i
 infoOf (TmAscrip i _ _) = i
 infoOf (TmLet i _ _ _) = i
+infoOf (TmTuple i _) = i
+infoOf (TmTupleProj i _ _) = i
 
 instance Show Term where
     show = pprint 0
@@ -52,12 +56,22 @@ pprint i (TmIsZero _ t) = indentBy i ++ "iszero " ++ show t
 pprint i (TmUnit {}) = indentBy i ++ "unit"
 pprint i (TmAscrip _ t ty) = indentBy i ++ show t ++ " as " ++ show ty
 pprint i (TmLet _ s t1 t2) = indentBy i ++ "let " ++ s ++ " = " ++ show t1 ++ "\n" ++ indentBy i ++ "in " ++ pprint i t2
+pprint i (TmTuple _ ts) = case ts of
+    [] -> indentBy i ++ "{}"
+    [t] -> indentBy i ++ "{" ++ show t ++ "}"
+    (x:_) -> indentBy i ++ "{" ++ show x ++ "\n" ++ ss ++ "}"
+        where s = map (pprint (i+1)) ts
+              ss = foldr1 (\s0 s1 -> s0 ++ "\n" ++ s1) s
+pprint i (TmTupleProj _ t n) = pprint i t ++ "." ++ show n
 
 isVal :: Term -> Bool
 isVal (TmAbs {}) = True
 isVal (TmTrue {}) = True
 isVal (TmFalse {}) = True
 isVal (TmUnit {}) = True
+isVal (TmTuple _ ts) = case ts of
+    [] -> False -- Empty tuple is not allowed
+    _ -> foldr (\t b -> isVal t && b) True ts
 isVal t = isNv t
 
 isNv :: Term -> Bool
@@ -86,6 +100,7 @@ printTerm ctx (TmIsZero _ t) = "iszero " ++ printTerm ctx t
 printTerm ctx (TmSucc _ t) = "succ " ++ printTerm ctx t
 printTerm ctx (TmPred _ t) = "pred " ++ printTerm ctx t
 printTerm ctx (TmLet _ s t1 t2) = "let " ++ s ++ " = " ++ printTerm ctx t1 ++ "\nin " ++ printTerm ctx t2
+printTerm _ t@(TmTuple {}) = show t
 printTerm _ t = show t
 
 pickFreshName :: Context -> String -> (Context, String)

@@ -10,6 +10,7 @@ data TmType = TyBool
             | TyNat
             | TyArrow TmType TmType
             | TyUnit
+            | TyTuple [TmType] Int -- Empty tuple is not allowed. Int represents length of [TmType]
 
 data Info = Info {row :: Int, col :: Int}
 
@@ -23,6 +24,10 @@ instance Show TmType where
         TyArrow _ _ -> "(" ++ show t1 ++ ")" ++ " -> " ++ show t2
         _ -> show t1 ++ " -> " ++ show t2
     show TyUnit = "Unit"
+    show (TyTuple ts l) = case ts of
+        [] -> "Error: empty tuple occured"
+        [t] -> "{" ++ show t ++ "}"
+        (t:ts') -> "{" ++ show t ++ ", " ++ show (TyTuple ts' l) ++ show "}"
 
 instance Eq TmType where
     TyUnit == _ = True

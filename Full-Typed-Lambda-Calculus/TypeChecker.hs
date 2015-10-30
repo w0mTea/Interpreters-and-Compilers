@@ -72,3 +72,17 @@ typeOf ctx (TmLet _ s t1 t2) = do -- T-LET
     let ctx' = addBinding ctx s (VarBind ty1)
     ty2 <- typeOf ctx' t2
     Right ty2
+typeOf ctx (TmTuple _ ts) = do -- T-TUPLE
+    tys <- mapM (typeOf ctx) ts
+    return $ TyTuple tys $ length tys
+typeOf ctx (TmTupleProj info t n) = do -- T-TUPLEPROJ
+    ty <- typeOf ctx t
+    case ty of
+        TyTuple tys len
+            | n <= len && n > 0 -> Right $ tys !! (n - 1)
+            | otherwise -> Left $ show info ++ ":" ++
+                                  "\n    Invalid index of tuple" ++
+                                  "\n    The index " ++ show n ++ "is not valid"
+        _ -> Left $ show info ++ ":" ++
+                    "\n    Projection on a non-tuple term" ++
+                    "\n    Except a tuple but given" ++ show ty
