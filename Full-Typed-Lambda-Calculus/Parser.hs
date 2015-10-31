@@ -106,9 +106,14 @@ parseUnitType = do
 parsePrimitiveType :: Parsec String u TmType
 parsePrimitiveType = msum [parseBoolType, parseNatType, parseUnitType]
 
+parseTupleType :: Parsec String u TmType
+parseTupleType = tytuple <$> (symbol "{" *> sepBy parseType comma <* symbol "}")
+    where tytuple tys = TyTuple tys (length tys)
+
 parseNonArrowType :: Parsec String u TmType
 parseNonArrowType =  parsePrimitiveType
                  <|> parens parseType
+                 <|> parseTupleType
 
 parseType :: Parsec String u TmType
 parseType = do
