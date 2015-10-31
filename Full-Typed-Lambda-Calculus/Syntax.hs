@@ -2,6 +2,7 @@ module Syntax where
 
 import Context
 import Data.List (isPrefixOf, intercalate)
+import qualified Data.Map as Map
 
 data Term = TmTrue Info
           | TmFalse Info
@@ -16,8 +17,10 @@ data Term = TmTrue Info
           | TmUnit Info
           | TmAscrip Info Term TmType
           | TmLet Info String Term Term -- let name = term in term
-          | TmTuple Info [Term] -- Empty tuple is not allowed, Int means length
+          | TmTuple Info [Term] -- Empty tuple is not allowed
           | TmTupleProj Info Term Int
+          | TmRecord Info (Map.Map String Term) -- Empty record is not allowed
+          | TmRecordProj Info Term String
 
 infoOf :: Term -> Info
 infoOf (TmTrue i) = i
@@ -35,6 +38,8 @@ infoOf (TmAscrip i _ _) = i
 infoOf (TmLet i _ _ _) = i
 infoOf (TmTuple i _) = i
 infoOf (TmTupleProj i _ _) = i
+infoOf (TmRecord i _) = i
+infoOf (TmRecordProj i _ _) = i
 
 instance Show Term where
     show = pprint 0
@@ -62,6 +67,14 @@ pprint i (TmTuple _ ts) = case ts of
     _ -> indentBy i ++ "{" ++ s ++ "}"
         where s = intercalate ", " $ map show ts
 pprint i (TmTupleProj _ t n) = pprint i t ++ "." ++ show n
+pprint i (TmRecord _ m) = let ts = Map.toList m in
+    case ts of
+        [] -> indentBy i ++ "{}"
+        [(l, t)] -> indentBy i ++ "{" ++ l ++ " = " ++ show t ++ "}"
+        _ -> indentBy i ++ "{" ++ s ++ "}"
+            where ss = map (\(l, t)-> l ++ " = " ++ show t) ts
+                  s = intercalate ", " ss
+pprint i (TmRecordProj _ t l) = pprint i t ++ l
 
 isVal :: Term -> Bool
 isVal (TmAbs {}) = True
@@ -70,7 +83,10 @@ isVal (TmFalse {}) = True
 isVal (TmUnit {}) = True
 isVal (TmTuple _ ts) = case ts of
     [] -> False -- Empty tuple is not allowed
-    _ -> foldr (\t b -> isVal t && b) True ts
+    _ -> all isVal ts
+isVal (TmRecord _ m)
+    | Map.null m = False
+    | otherwise = all isVal m
 isVal t = isNv t
 
 isNv :: Term -> Bool
@@ -100,6 +116,7 @@ printTerm ctx (TmSucc _ t) = "succ " ++ printTerm ctx t
 printTerm ctx (TmPred _ t) = "pred " ++ printTerm ctx t
 printTerm ctx (TmLet _ s t1 t2) = "let " ++ s ++ " = " ++ printTerm ctx t1 ++ "\nin " ++ printTerm ctx t2
 printTerm _ t@(TmTuple {}) = show t
+printTerm _ t@(TmRecord {}) = show t
 printTerm _ t = show t
 
 pickFreshName :: Context -> String -> (Context, String)

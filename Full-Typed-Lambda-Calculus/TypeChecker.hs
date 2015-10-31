@@ -1,7 +1,8 @@
-module TypeChecker where
+module TypeChecker (typeOf) where
 
 import Syntax
 import Context
+import qualified Data.Map as Map
 
 typeOf :: Context -> Term -> Either String TmType
 typeOf _ (TmTrue {}) = Right TyBool -- T-TRUE
@@ -75,14 +76,29 @@ typeOf ctx (TmLet _ s t1 t2) = do -- T-LET
 typeOf ctx (TmTuple _ ts) = do -- T-TUPLE
     tys <- mapM (typeOf ctx) ts
     return $ TyTuple tys $ length tys
-typeOf ctx (TmTupleProj info t n) = do -- T-TUPLEPROJ
+typeOf ctx (TmTupleProj info t n) = do -- T-PROJTUPLE
     ty <- typeOf ctx t
     case ty of
         TyTuple tys len
             | n <= len && n > 0 -> Right $ tys !! (n - 1)
             | otherwise -> Left $ show info ++ ":" ++
                                   "\n    Invalid index of tuple" ++
-                                  "\n    The index " ++ show n ++ "is not valid"
+                                  "\n    The index " ++ show n ++ " is not valid"
         _ -> Left $ show info ++ ":" ++
                     "\n    Projection on a non-tuple term" ++
-                    "\n    Except a tuple but given" ++ show ty
+                    "\n    Except a tuple but given " ++ show ty
+typeOf ctx (TmRecord _ m) = let (me, m') = Map.mapEither (typeOf ctx) m in -- T-RCD
+    if Map.null me
+    then Right $ TyRecord m'
+    else Left $ snd $ Map.elemAt 0 me
+typeOf ctx (TmRecordProj info t l) = do -- T-PROJRCD
+    ty <- typeOf ctx t
+    case ty of
+        TyRecord m -> let ty' = Map.lookup l m
+                      in case ty' of
+                          Just ty'' -> Right ty''
+                          Nothing   -> Left $ show info ++ ":" ++
+                                              "\n    The key \"" ++ l ++ "\" doesn't exist in the record"
+        _ -> Left $ show info ++ ":" ++
+                    "\n    Projection on a non-record term" ++
+                    "\n    Except a record but given " ++ show ty

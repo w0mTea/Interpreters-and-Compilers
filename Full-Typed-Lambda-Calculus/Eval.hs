@@ -1,6 +1,7 @@
 module Eval where
 import Syntax
 import Control.Monad (liftM)
+import qualified Data.Map as Map
 
 -- apply a function on Each subterm of the given term
 tmMap :: (Int -> Term -> Term) -> Term -> Term
@@ -22,6 +23,9 @@ tmMap f = func 0
         func c (TmTuple info ts) = TmTuple info ts'
             where ts' = map (func c) ts
         func c (TmTupleProj info t n) = TmTupleProj info (func c t) n
+        func c (TmRecord info m) = TmRecord info m'
+            where m' = Map.map (func c) m
+        func c (TmRecodProj info t l) = TmRecodProj info (func c t) l
 
 tmShift :: Int -> Term -> Term
 tmShift step = tmMap f
@@ -81,7 +85,18 @@ eval1 (TmTuple info t) =
     in case ts of
         [] -> Nothing -- evaluate complete
         (x:xs) -> do {x' <- eval1 x; return $ TmTuple info $ vs ++ [x'] ++ xs} -- E-TUPLE
-
+eval1 r@(TmRecord info m) =
+    let (mvs, mts) = Map.partition isVal m
+    in if Map.null mts
+       then Nothing -- evaluate complete
+       else do -- E-RCD
+           let (l:_) = Map.keys m
+           t <- Map.lookup l m
+           t' <- eval1 t
+           return $ TmRecord info (Map.insert l t' m)
+eval1 (TmRecordProj info t@(TmRecord _ m) l) -- E-PROJ-R
+    | isVal t = Map.lookup l m
+    | otherwise = TmTuple info <$> eval1 t <*> Just l
 eval1 _ = Nothing
 
 eval :: Term -> Term
