@@ -1,7 +1,7 @@
 module Syntax where
 
 import Context
-import Data.List (isPrefixOf)
+import Data.List (isPrefixOf, intercalate)
 
 data Term = TmTrue Info
           | TmFalse Info
@@ -59,9 +59,8 @@ pprint i (TmLet _ s t1 t2) = indentBy i ++ "let " ++ s ++ " = " ++ show t1 ++ "\
 pprint i (TmTuple _ ts) = case ts of
     [] -> indentBy i ++ "{}"
     [t] -> indentBy i ++ "{" ++ show t ++ "}"
-    (x:_) -> indentBy i ++ "{" ++ show x ++ "\n" ++ ss ++ "}"
-        where s = map (pprint (i+1)) ts
-              ss = foldr1 (\s0 s1 -> s0 ++ "\n" ++ s1) s
+    _ -> indentBy i ++ "{" ++ s ++ "}"
+        where s = intercalate ", " $ map show ts
 pprint i (TmTupleProj _ t n) = pprint i t ++ "." ++ show n
 
 isVal :: Term -> Bool

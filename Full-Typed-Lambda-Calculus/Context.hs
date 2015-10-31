@@ -1,4 +1,5 @@
 module Context where
+import Data.List (intercalate)
 
 type Context = [(String, Binding)]
 
@@ -24,10 +25,11 @@ instance Show TmType where
         TyArrow _ _ -> "(" ++ show t1 ++ ")" ++ " -> " ++ show t2
         _ -> show t1 ++ " -> " ++ show t2
     show TyUnit = "Unit"
-    show (TyTuple ts l) = case ts of
+    show (TyTuple ts _) = case ts of
         [] -> "Error: empty tuple occured"
         [t] -> "{" ++ show t ++ "}"
-        (t:ts') -> "{" ++ show t ++ ", " ++ show (TyTuple ts' l) ++ show "}"
+        _ -> "{" ++ s ++ "}"
+            where s = intercalate ", " $ map show ts
 
 instance Eq TmType where
     TyUnit == _ = True
@@ -35,6 +37,11 @@ instance Eq TmType where
     TyBool == TyBool = True
     TyNat == TyNat = True
     (TyArrow t1 t2) == (TyArrow t1' t2') = t1 == t1' && t2 == t2'
+    (TyTuple ts l) == (TyTuple ts' l') = l == l' && and2 ts ts'
+        where and2 [] [] = True
+              and2 [x] [y] = x == y
+              and2 (x:xs) (y:ys) = x == y && and2 xs ys
+              and2 _ _ = False
     _ == _ = False
 
 instance Show Info where

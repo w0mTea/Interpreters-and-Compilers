@@ -74,7 +74,7 @@ eval1 (TmAscrip info t ty) | isVal t = return t -- E-ASCRIBE
 eval1 (TmLet info s t1 t2) | isVal t1 = return $ tmAppSubst t2 t1 -- E-LETV
                            | otherwise = do {t1' <- eval1 t1; return $ TmLet info s t1' t2} -- E-LET
 eval1 (TmTupleProj info t@(TmTuple _ ts) n)
-    | isVal t = return $ ts !! n -- E-PROJTUPLE
+    | isVal t = return $ ts !! (n - 1)-- E-PROJTUPLE
     | otherwise = do {t' <- eval1 t; return $ TmTupleProj info t' n} -- E-PROJ
 eval1 (TmTuple info t) =
     let (vs, ts) = span isVal t

@@ -4,7 +4,7 @@ import Context
 import Syntax
 import Text.Parsec
 import Data.Functor.Identity (Identity)
-import Control.Monad (msum)
+import Control.Monad (msum, liftM)
 import qualified Text.Parsec.Token as T
 
 type LCParser = ParsecT String Context Identity Term
@@ -47,6 +47,9 @@ colon = T.colon lexer
 semi :: ParsecT String u Identity String
 semi = T.semi lexer
 
+comma :: ParsecT String u Identity String
+comma = T.comma lexer
+
 dot :: ParsecT String u Identity String
 dot = T.dot lexer
 
@@ -55,6 +58,9 @@ wildcard = T.symbol lexer "_"
 
 arrow :: ParsecT String u Identity String
 arrow = T.symbol lexer "->"
+
+decimal :: ParsecT String u Identity Integer
+decimal = T.decimal lexer
 
 parens :: ParsecT String u Identity a -> ParsecT String u Identity a
 parens = T.parens lexer
@@ -197,6 +203,14 @@ parseUnitTerm = do
     return $ foldr1 unitToApp ts
     where unitToApp t1 t2 = TmApp dummyinfo (TmAbs dummyinfo "" TyUnit t2) t1
 
+parseTuple :: LCParser
+parseTuple = do
+    pos <- getPosition
+    _ <- symbol "{"
+    ts <- sepBy parseTerm comma
+    _ <- symbol "}"
+    return $ TmTuple (infoFrom pos) ts
+
 parseNonApp :: LCParser
 parseNonApp =  parens parseTerm
            <|> parseIf
@@ -206,15 +220,21 @@ parseNonApp =  parens parseTerm
            <|> parseIsZero
            <|> parseUnit
            <|> parseLet
+           <|> parseTuple
            <|> try parseVar
 
-parseAscrip :: LCParser -> LCParser
-parseAscrip p = do
-    t <- p
-    option t $ do {_ <- symbol "as"; ty <- parseType; return $ TmAscrip (infoOf t) t ty}
+parseAscrip :: Term -> LCParser
+parseAscrip t = TmAscrip (infoOf t) t <$> (symbol "as" >> parseType)
+
+parseTupleProj :: Term -> LCParser
+parseTupleProj t = TmTupleProj (infoOf t) t <$> liftM fromIntegral (dot >> decimal)
+
+parseFollowingNonApp :: LCParser
+parseFollowingNonApp = parseNonApp >>= fmsum [parseAscrip, parseTupleProj]
+    where fmsum ps t = option t $ msum $ map (\f -> f t) ps
 
 parseTerm :: LCParser
-parseTerm = chainl1 (blank >> parseAscrip parseNonApp) $ do
+parseTerm = chainl1 (blank >> parseFollowingNonApp) $ do
     pos <- getPosition
     return $ TmApp (infoFrom pos)
 
