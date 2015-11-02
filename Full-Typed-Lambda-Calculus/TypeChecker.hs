@@ -2,7 +2,8 @@ module TypeChecker (typeOf) where
 
 import Syntax
 import Context
-import qualified Data.Map as Map
+import Data.List (partition)
+import Control.Arrow (second)
 
 typeOf :: Context -> Term -> Either String TmType
 typeOf _ (TmTrue {}) = Right TyBool -- T-TRUE
@@ -87,14 +88,21 @@ typeOf ctx (TmTupleProj info t n) = do -- T-PROJTUPLE
         _ -> Left $ show info ++ ":" ++
                     "\n    Projection on a non-tuple term" ++
                     "\n    Except a tuple but given " ++ show ty
-typeOf ctx (TmRecord _ m) = let (me, m') = Map.mapEither (typeOf ctx) m in -- T-RCD
-    if Map.null me
-    then Right $ TyRecord m'
-    else Left $ snd $ Map.elemAt 0 me
+typeOf ctx (TmRecord _ ts) = -- T-RECORD
+    let mapUntilEither = mapUntilEither' []
+        mapUntilEither' r _ [] = ([], r)
+        mapUntilEither' r f (x:xs) = let (l, t') = f x
+                                     in case t' of
+                                         Left s -> ([(l, s)], r)
+                                         Right t -> mapUntilEither' (r ++ [(l, t)]) f xs
+        (e, ts') = mapUntilEither (second $ typeOf ctx) ts
+    in case e of
+       [] -> Right $ TyRecord ts'
+       (x : _) -> Left $ snd x
 typeOf ctx (TmRecordProj info t l) = do -- T-PROJRCD
     ty <- typeOf ctx t
     case ty of
-        TyRecord m -> let ty' = Map.lookup l m
+        TyRecord ts -> let ty' = lookup l ts
                       in case ty' of
                           Just ty'' -> Right ty''
                           Nothing   -> Left $ show info ++ ":" ++

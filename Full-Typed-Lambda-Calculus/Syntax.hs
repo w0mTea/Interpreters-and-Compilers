@@ -2,7 +2,6 @@ module Syntax where
 
 import Context
 import Data.List (isPrefixOf, intercalate)
-import qualified Data.Map as Map
 
 data Term = TmTrue Info
           | TmFalse Info
@@ -19,7 +18,7 @@ data Term = TmTrue Info
           | TmLet Info String Term Term -- let name = term in term
           | TmTuple Info [Term] -- Empty tuple is not allowed
           | TmTupleProj Info Term Int
-          | TmRecord Info (Map.Map String Term) -- Empty record is not allowed
+          | TmRecord Info [(String, Term)] -- Empty record is not allowed
           | TmRecordProj Info Term String
 
 infoOf :: Term -> Info
@@ -67,7 +66,7 @@ pprint i (TmTuple _ ts) = case ts of
     _ -> indentBy i ++ "{" ++ s ++ "}"
         where s = intercalate ", " $ map show ts
 pprint i (TmTupleProj _ t n) = pprint i t ++ "." ++ show n
-pprint i (TmRecord _ m) = let ts = Map.toList m in
+pprint i (TmRecord _ ts) =
     case ts of
         [] -> indentBy i ++ "{}"
         [(l, t)] -> indentBy i ++ "{" ++ l ++ " = " ++ show t ++ "}"
@@ -84,9 +83,9 @@ isVal (TmUnit {}) = True
 isVal (TmTuple _ ts) = case ts of
     [] -> False -- Empty tuple is not allowed
     _ -> all isVal ts
-isVal (TmRecord _ m)
-    | Map.null m = False
-    | otherwise = all isVal m
+isVal (TmRecord _ ts)
+    | null ts = False
+    | otherwise = all (\(_, t) -> isVal t) ts
 isVal t = isNv t
 
 isNv :: Term -> Bool

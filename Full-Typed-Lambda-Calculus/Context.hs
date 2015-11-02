@@ -1,6 +1,5 @@
 module Context where
 import Data.List (intercalate)
-import qualified Data.Map as Map
 
 type Context = [(String, Binding)]
 
@@ -13,7 +12,7 @@ data TmType = TyBool
             | TyArrow TmType TmType
             | TyUnit
             | TyTuple [TmType] Int -- Empty tuple is not allowed. Int represents length of [TmType]
-            | TyRecord (Map.Map String TmType)
+            | TyRecord [(String, TmType)]
             deriving Eq
 
 data Info = Info {row :: Int, col :: Int}
@@ -33,13 +32,11 @@ instance Show TmType where
         [t] -> "{" ++ show t ++ "}"
         _ -> "{" ++ s ++ "}"
             where s = intercalate ", " $ map show ts
-    show (TyRecord m) | Map.null m = "Error: Empty record occurs"
-                      | Map.size m == 1 = let [(l, t)] = Map.toList m
-                                          in "{" ++ l ++ " = " ++ show t ++ "}"
-                      | otherwise = let ts = Map.toList m
-                                        show' (l, t) = l ++ " = " ++ show t
-                                        s = intercalate ", " $ map show' ts
-                                    in "{" ++ s ++ "}"
+    show (TyRecord [(l, t)]) = "{" ++ l ++ " = " ++ show t ++ "}"
+    show (TyRecord ts) | null ts = "Error: Empty record occurs"
+                       | otherwise = let show' (l, t) = l ++ " = " ++ show t
+                                         s = intercalate ", " $ map show' ts
+                                     in "{" ++ s ++ "}"
 
 instance Show Info where
     show (Info r c) = show r ++ ":" ++ show c

@@ -6,7 +6,6 @@ import Text.Parsec
 import Data.Functor.Identity (Identity)
 import Control.Monad (msum, liftM)
 import qualified Text.Parsec.Token as T
-import qualified Data.Map as Map
 
 type LCParser = ParsecT String Context Identity Term
 
@@ -115,9 +114,8 @@ parseTupleType = tytuple <$> braces (sepBy parseType comma)
     where tytuple tys = TyTuple tys (length tys)
 
 parseRecordType :: Parsec String u TmType
-parseRecordType = tyrecord <$> braces (sepBy parseRcdTy comma)
-    where tyrecord = TyRecord . Map.fromList
-          parseRcdTy = (,) <$> ident <* symbol "=" <*> parseType
+parseRecordType = TyRecord <$> braces (sepBy parseRcdTy comma)
+    where parseRcdTy = (,) <$> ident <* symbol "=" <*> parseType
 
 parseNonArrowType :: Parsec String u TmType
 parseNonArrowType =  parsePrimitiveType
@@ -228,7 +226,7 @@ parseRecord :: LCParser
 parseRecord = do
     pos <- getPosition
     ts <- braces $ sepBy parseRcd comma
-    return $ TmRecord (infoFrom pos) (Map.fromList ts)
+    return $ TmRecord (infoFrom pos) ts
     where parseRcd = do
             n <- ident
             _ <- symbol "="
