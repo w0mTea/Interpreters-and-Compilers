@@ -74,7 +74,7 @@ pprint i (TmRecord _ m) = let ts = Map.toList m in
         _ -> indentBy i ++ "{" ++ s ++ "}"
             where ss = map (\(l, t)-> l ++ " = " ++ show t) ts
                   s = intercalate ", " ss
-pprint i (TmRecordProj _ t l) = pprint i t ++ l
+pprint i (TmRecordProj _ t l) = pprint i t ++ "." ++ l
 
 isVal :: Term -> Bool
 isVal (TmAbs {}) = True
@@ -134,4 +134,4 @@ pickFreshName ctx name = (ctx', name')
 indexToName :: Info -> Context -> Int -> String
 indexToName _ ctx index = fst $ f ctx index
   where f (x:_) 0 = x
-        f (x:xs) n = f xs (n-1)
+        f (_:xs) n = f xs (n-1)

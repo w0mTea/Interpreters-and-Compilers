@@ -14,6 +14,7 @@ data TmType = TyBool
             | TyUnit
             | TyTuple [TmType] Int -- Empty tuple is not allowed. Int represents length of [TmType]
             | TyRecord (Map.Map String TmType)
+            deriving Eq
 
 data Info = Info {row :: Int, col :: Int}
 
@@ -40,19 +41,6 @@ instance Show TmType where
                                         s = intercalate ", " $ map show' ts
                                     in "{" ++ s ++ "}"
 
-instance Eq TmType where
-    TyUnit == _ = True
-    _ == TyUnit = True
-    TyBool == TyBool = True
-    TyNat == TyNat = True
-    (TyArrow t1 t2) == (TyArrow t1' t2') = t1 == t1' && t2 == t2'
-    (TyTuple ts l) == (TyTuple ts' l') = l == l' && and2 ts ts'
-        where and2 [] [] = True
-              and2 [x] [y] = x == y
-              and2 (x:xs) (y:ys) = x == y && and2 xs ys
-              and2 _ _ = False
-    _ == _ = False
-
 instance Show Info where
     show (Info r c) = show r ++ ":" ++ show c
 
@@ -70,3 +58,8 @@ getTypeFromContext fi ctx i =
                           | n  > 0 = bindAt xs (n - 1)
           bindAt _ _ = Nothing
           c = bindAt ctx i
+
+(===) :: TmType -> TmType -> Bool
+TyUnit === _ = True
+_ === TyUnit = True
+a === b = a == b

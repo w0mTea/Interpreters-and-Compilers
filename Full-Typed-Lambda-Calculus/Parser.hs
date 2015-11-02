@@ -6,6 +6,7 @@ import Text.Parsec
 import Data.Functor.Identity (Identity)
 import Control.Monad (msum, liftM)
 import qualified Text.Parsec.Token as T
+import qualified Data.Map as Map
 
 type LCParser = ParsecT String Context Identity Term
 
@@ -65,6 +66,9 @@ decimal = T.decimal lexer
 parens :: ParsecT String u Identity a -> ParsecT String u Identity a
 parens = T.parens lexer
 
+braces :: ParsecT String u Identity a -> ParsecT String u Identity a
+braces = T.braces lexer
+
 infoFrom :: SourcePos -> Info
 infoFrom pos = Info (sourceLine pos) (sourceColumn pos)
 
@@ -107,12 +111,18 @@ parsePrimitiveType :: Parsec String u TmType
 parsePrimitiveType = msum [parseBoolType, parseNatType, parseUnitType]
 
 parseTupleType :: Parsec String u TmType
-parseTupleType = tytuple <$> (symbol "{" *> sepBy parseType comma <* symbol "}")
+parseTupleType = tytuple <$> braces (sepBy parseType comma)
     where tytuple tys = TyTuple tys (length tys)
+
+parseRecordType :: Parsec String u TmType
+parseRecordType = tyrecord <$> braces (sepBy parseRcdTy comma)
+    where tyrecord = TyRecord . Map.fromList
+          parseRcdTy = (,) <$> ident <* symbol "=" <*> parseType
 
 parseNonArrowType :: Parsec String u TmType
 parseNonArrowType =  parsePrimitiveType
                  <|> parens parseType
+                 <|> try parseRecordType
                  <|> parseTupleType
 
 parseType :: Parsec String u TmType
@@ -211,10 +221,19 @@ parseUnitTerm = do
 parseTuple :: LCParser
 parseTuple = do
     pos <- getPosition
-    _ <- symbol "{"
-    ts <- sepBy parseTerm comma
-    _ <- symbol "}"
+    ts <- braces $ sepBy parseTerm comma
     return $ TmTuple (infoFrom pos) ts
+
+parseRecord :: LCParser
+parseRecord = do
+    pos <- getPosition
+    ts <- braces $ sepBy parseRcd comma
+    return $ TmRecord (infoFrom pos) (Map.fromList ts)
+    where parseRcd = do
+            n <- ident
+            _ <- symbol "="
+            t <- parseTerm
+            return (n, t)
 
 parseNonApp :: LCParser
 parseNonApp =  parens parseTerm
@@ -225,6 +244,7 @@ parseNonApp =  parens parseTerm
            <|> parseIsZero
            <|> parseUnit
            <|> parseLet
+           <|> try parseRecord
            <|> parseTuple
            <|> try parseVar
 
@@ -234,8 +254,11 @@ parseAscrip t = TmAscrip (infoOf t) t <$> (symbol "as" >> parseType)
 parseTupleProj :: Term -> LCParser
 parseTupleProj t = TmTupleProj (infoOf t) t <$> liftM fromIntegral (dot >> decimal)
 
+parseRecordProj :: Term -> LCParser
+parseRecordProj t = TmRecordProj (infoOf t) t <$> (dot >> ident)
+
 parseFollowingNonApp :: LCParser
-parseFollowingNonApp = parseNonApp >>= fmsum [parseAscrip, parseTupleProj]
+parseFollowingNonApp = (parseNonApp >>= fmsum [parseAscrip, try . parseTupleProj, parseRecordProj]) <* blank
     where fmsum ps t = option t $ msum $ map (\f -> f t) ps
 
 parseTerm :: LCParser

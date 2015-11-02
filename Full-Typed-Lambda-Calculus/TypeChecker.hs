@@ -29,11 +29,11 @@ typeOf ctx (TmApp info t1 t2) = do -- T-APP
     tyT1 <- typeOf ctx t1
     tyT2 <- typeOf ctx t2
     case tyT1 of
-        (TyArrow tyT11 tyT12) | tyT11 == tyT2 -> Right tyT12
-                              | otherwise     -> Left $ show info ++ ":" ++
-                                                 "\n    Expect type '" ++ show tyT11 ++ "' but the actual type is '" ++ show tyT2 ++ "'" ++
-                                                 "\n    " ++ printTerm ctx t1 ++ " : " ++ show tyT1 ++
-                                                 "\n    " ++ printTerm ctx t2 ++ " : " ++ show tyT2
+        (TyArrow tyT11 tyT12) | tyT11 === tyT2 -> Right tyT12 -- Notice: t1:Unit->t t2:t1 is allowed so here use === instead of ==
+                              | otherwise      -> Left $ show info ++ ":" ++
+                                                  "\n    Expect type '" ++ show tyT11 ++ "' but the actual type is '" ++ show tyT2 ++ "'" ++
+                                                  "\n    " ++ printTerm ctx t1 ++ " : " ++ show tyT1 ++
+                                                  "\n    " ++ printTerm ctx t2 ++ " : " ++ show tyT2
         _ -> Left $ show info ++ ":" ++
                     "\n    Arrow type expected" ++
                     "\n    " ++ printTerm ctx t1 ++ " : " ++ show tyT1
